@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "render-gl",
+    "ecs-macro",
+    "ecs"
+]
