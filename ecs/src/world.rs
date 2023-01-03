@@ -66,6 +66,7 @@ impl<F> World<F> {
     pub fn update(&mut self, data: &F) {
         for system in self.systems.iter_mut() {
             system.update(&mut self.entity_manager, &mut self.entity_query_table, data);
+            self.entity_manager.tick_frame();
         }
     }
 }

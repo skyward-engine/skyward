@@ -70,6 +70,7 @@ pub struct EntityManager {
 pub struct TupleData<'a> {
     entities: &'a Vec<usize>,
     type_id: TypeId,
+    update_frame: u64,
 }
 
 macro_rules! tuple {
@@ -82,11 +83,13 @@ macro_rules! tuple {
                     {
                         let type_id = TypeId::of::<$T>();
                         let entities = manager.query_entity_ids::<$T>()?;
+                        let update_frame = manager.get_updated_frame::<$T>();
 
                         f(
                             TupleData {
                                 entities,
                                 type_id,
+                                update_frame,
                             }
                         );
                     }
@@ -149,6 +152,16 @@ impl EntityManager {
         return 0;
     }
 
+    pub fn get_updated_frame_type(&self, type_id: TypeId) -> u64 {
+        let retrieved = self.frame_map.get(&type_id);
+
+        if let Some(id) = retrieved {
+            return *id;
+        }
+
+        return 0;
+    }
+
     pub fn register<T>(&mut self) -> &mut Self
     where
         T: 'static + Component,
@@ -180,6 +193,10 @@ impl EntityManager {
         }
 
         self.container.remove(entity_id);
+    }
+
+    pub fn tick_frame(&mut self) {
+        self.frame += 1;
     }
 
     pub fn entity_with<T>(&mut self, entity_id: usize, component: T) -> &mut Self
@@ -230,17 +247,42 @@ impl EntityManager {
     query!(query_entity<T>);
     query!(query_entity_two<T1, T2>);
     query!(query_entity_three<T, T2, T3>);
+    query!(query_entity_four<T1, T2, T3, T4>);
 }
 
 pub struct EntityQueryTable {
     query_cache: HashMap<TypeId, Vec<usize>>,
+    frames: HashMap<TypeId, u64>,
 }
 
 impl EntityQueryTable {
     pub fn new() -> Self {
         Self {
             query_cache: HashMap::new(),
+            frames: HashMap::new(),
         }
+    }
+
+    pub fn query_single<T>(&mut self, manager: &mut EntityManager) -> Option<&Vec<usize>>
+    where
+        T: Component,
+    {
+        let type_id = TypeId::of::<T>();
+
+        if !self.query_cache.contains_key(&type_id) {
+            self.query_cache.insert(type_id, vec![]);
+
+            let entities = &manager.borrow_manager::<T>()?.entities;
+            let cache = self.query_cache.get_mut(&type_id)?;
+
+            cache.clear();
+
+            for entity in entities {
+                cache.push(*entity);
+            }
+        }
+
+        self.query_cache.get(&type_id)
     }
 
     pub fn query<T>(&mut self, manager: &mut EntityManager) -> Option<Vec<usize>>
@@ -253,17 +295,32 @@ impl EntityQueryTable {
             let type_id = data.type_id;
             let entities = data.entities;
 
+            let mut update = true;
+
             if !self.query_cache.contains_key(&type_id) {
                 self.query_cache.insert(type_id, vec![]);
+            } else {
+                let updated_frame = self.frames.get(&type_id);
 
-                let cache = self.query_cache.get_mut(&type_id)?;
+                if data.update_frame == *updated_frame.unwrap_or(&(data.update_frame + 1)) {
+                    update = false;
+                }
+            }
 
+            let cache = self.query_cache.get_mut(&type_id)?;
+
+            if update {
                 cache.clear();
 
                 for entity in entities {
-                    vec.push(*entity);
                     cache.push(*entity);
                 }
+
+                self.frames.insert(type_id, data.update_frame);
+            }
+
+            for entity in cache.iter() {
+                vec.push(*entity);
             }
 
             None

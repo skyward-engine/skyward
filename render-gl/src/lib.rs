@@ -60,8 +60,7 @@ mod test {
             event_loop::{ControlFlow, EventLoopWindowTarget},
         },
         index::{NoIndices, PrimitiveType},
-        uniforms::EmptyUniforms,
-        Display, Program, Surface, VertexBuffer,
+        uniform, Display, Program, Surface, VertexBuffer,
     };
 
     use crate::{
@@ -86,6 +85,7 @@ mod test {
         }
 
         struct InternalSystem;
+        struct TransformSystem;
 
         impl System<Display> for InternalSystem {
             fn update(
@@ -94,13 +94,15 @@ mod test {
                 table: &mut ecs::entity::EntityQueryTable,
                 display: &Display,
             ) -> Option<()> {
-                let entities =
-                    table.query::<(VertexBufferContainer, ProgramContainer, NoIndicesContainer)>(
-                        manager,
-                    )?;
+                let entities = table.query::<(
+                    VertexBufferContainer,
+                    ProgramContainer,
+                    NoIndicesContainer,
+                    Transform,
+                )>(manager)?;
 
                 for entity in entities {
-                    let (buffer, program, indices) = manager.query_entity_three::<VertexBufferContainer, ProgramContainer, NoIndicesContainer>(entity)?;
+                    let (buffer, program, indices, transform) = manager.query_entity_four::<VertexBufferContainer, ProgramContainer, NoIndicesContainer, Transform>(entity)?;
                     let mut target = display.draw();
 
                     target.clear_color(1.0, 0.1, 0.5, 1.0);
@@ -110,20 +112,44 @@ mod test {
                             &buffer.0,
                             &indices.0,
                             &program.0,
-                            &EmptyUniforms,
-                            // &uniform! {
-                            //     t: *t
-                            // },
+                            &uniform! {
+                                t: transform.0
+                            },
                             &Default::default(),
                         )
                         .unwrap();
-                    target.finish().unwrap(); // todo: unwrap
+                    target.finish().unwrap();
                 }
 
                 None
             }
         }
 
+        impl System<Display> for TransformSystem {
+            fn update(
+                &mut self,
+                manager: &mut ecs::entity::EntityManager,
+                table: &mut ecs::entity::EntityQueryTable,
+                _: &Display,
+            ) -> Option<()> {
+                let entities = table.query_single::<Transform>(manager)?;
+
+                for entity in entities {
+                    let transform = manager.query_entity::<Transform>(*entity)?.0;
+                    let t = transform;
+
+                    t.0 += 0.002;
+                    if t.0 > 0.5 {
+                        t.0 = -0.5;
+                    }
+                }
+
+                None
+            }
+        }
+
+        #[derive(EntityComponent)]
+        struct Transform(f32);
         #[derive(EntityComponent)]
         struct ProgramContainer(Program);
         #[derive(EntityComponent)]
@@ -151,13 +177,13 @@ mod test {
                     #version 140
 
                     in vec3 position;
+                    uniform float t;
                     in vec3 color;
-                    // uniform float t;
                     out vec3 vColor;
 
                     void main() {
-                        // vec2 pos = position;
-                        // pos.x += t;
+                        vec3 pos = position;
+                        pos.x += t;
 
                         gl_Position = vec4(position, 1.0);
                         vColor = color;
@@ -186,13 +212,15 @@ mod test {
                 let entity = self.world.entity();
 
                 self.world
+                    .with::<Transform>(entity, Transform(-5.0))
                     .with::<ProgramContainer>(entity, ProgramContainer(program))
                     .with::<VertexBufferContainer>(entity, VertexBufferContainer(buffer))
                     .with::<NoIndicesContainer>(
                         entity,
                         NoIndicesContainer(NoIndices(PrimitiveType::TrianglesList)),
                     )
-                    .with_system(InternalSystem);
+                    .with_system(InternalSystem)
+                    .with_system(TransformSystem);
             }
 
             fn handle_main_loop<'a>(
