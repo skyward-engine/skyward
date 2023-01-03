@@ -50,7 +50,10 @@ trait PlatformHandle {
 
 #[cfg(test)]
 mod test {
-    use std::time::{Duration, Instant};
+    use std::{
+        io::Cursor,
+        time::{Duration, Instant},
+    };
 
     use ecs::{system::System, world::World};
     use ecs_macro::EntityComponent;
@@ -60,11 +63,14 @@ mod test {
             event_loop::{ControlFlow, EventLoopWindowTarget},
         },
         index::{NoIndices, PrimitiveType},
-        uniform, Display, Program, Surface, VertexBuffer,
+        texture::SrgbTexture2d,
+        uniform,
+        uniforms::{AsUniformValue, Uniforms, UniformsStorage},
+        Display, Program, Surface, VertexBuffer,
     };
 
     use crate::{
-        draw::{ToBuffer, Vertex},
+        draw::{TexturedVertex, ToBuffer},
         PlatformHandle, Window,
     };
 
@@ -99,22 +105,39 @@ mod test {
                     ProgramContainer,
                     NoIndicesContainer,
                     Transform,
+                    TwoDimensionalRgbTextureContainer,
                 )>(manager)?;
 
                 for entity in entities {
-                    let (buffer, program, indices, transform) = manager.query_entity_four::<VertexBufferContainer, ProgramContainer, NoIndicesContainer, Transform>(entity)?;
+                    let (
+                        buffer,
+                        program,
+                        indices,
+                        transform,
+                        texture
+                    ) = manager.query_entity_five::<VertexBufferContainer, ProgramContainer, NoIndicesContainer, Transform, TwoDimensionalRgbTextureContainer>(entity)?;
                     let mut target = display.draw();
 
+                    let t = transform.0;
+                    let texture = &texture.0;
+
                     target.clear_color(1.0, 1.0, 1.0, 1.0);
+                    let uniform = &uniform! {
+                        matrix: [
+                            [ t.cos(), t.sin(), 0.0, 0.0],
+                            [-t.sin(), t.cos(), 0.0, 0.0],
+                            [0.0, 0.0, 1.0, 0.0],
+                            [0.0, 0.0, 0.0, 1.0f32],
+                        ],
+                        tex: texture,
+                    };
 
                     target
                         .draw(
                             &buffer.0,
                             &indices.0,
                             &program.0,
-                            &uniform! {
-                                t: transform.0
-                            },
+                            uniform,
                             &Default::default(),
                         )
                         .unwrap();
@@ -138,9 +161,9 @@ mod test {
                     let transform = manager.query_entity::<Transform>(*entity)?.0;
                     let t = transform;
 
-                    t.0 += 0.002;
+                    t.0 += 0.0002;
                     if t.0 > 0.5 {
-                        t.0 = -0.5;
+                        // t.0 = -0.5;
                     }
                 }
 
@@ -150,12 +173,24 @@ mod test {
 
         #[derive(EntityComponent)]
         struct Transform(f32);
+
         #[derive(EntityComponent)]
         struct ProgramContainer(Program);
+
         #[derive(EntityComponent)]
-        struct VertexBufferContainer(VertexBuffer<Vertex>);
+        struct VertexBufferContainer(VertexBuffer<TexturedVertex>);
+
         #[derive(EntityComponent)]
         struct NoIndicesContainer(NoIndices);
+
+        #[derive(EntityComponent)]
+        struct TwoDimensionalRgbTextureContainer(SrgbTexture2d);
+
+        #[derive(EntityComponent)]
+        struct UniformContainer<T, R>(UniformsStorage<'static, T, R>)
+        where
+            T: AsUniformValue + 'static,
+            R: Uniforms + 'static;
 
         impl PlatformHandle for MetaPlatform {
             fn initialize_display(&mut self, display: Display) {
@@ -163,43 +198,19 @@ mod test {
             }
 
             fn initialize_cache(&mut self) {
-                let buffer = Vertex::to_buffer(
+                let buffer = TexturedVertex::to_buffer(
                     self.display.as_ref().unwrap(),
                     &[
-                        vertex!([-0.5, -0.5], [1.0, 0.0, 0.0]),
-                        vertex!([0.0, 0.5], [0.0, 1.0, 0.0]),
-                        vertex!([0.5, -0.5], [0.0, 0.0, 1.0]),
+                        vertex!([-0.5, -0.5], [0.0, 0.0]),
+                        vertex!([0.5, -0.5], [0.0, 1.0]),
+                        vertex!([-0.5, 0.5], [1.0, 0.0]),
+                        vertex!([0.5, 0.5], [1.0, 1.0]),
                     ],
                 )
                 .unwrap();
 
-                let vertex_shader_src = r#"
-                    #version 140
-
-                    in vec3 position;
-                    uniform float t;
-                    in vec3 color;
-                    out vec3 vColor;
-
-                    void main() {
-                        vec3 pos = position;
-                        pos.x += t;
-
-                        gl_Position = vec4(position, 1.0);
-                        vColor = color;
-                    }
-                "#;
-
-                let fragment_shader_src = r#"
-                    #version 140
-
-                    in vec3 vColor;
-                    out vec4 f_color;
-
-                    void main() {
-                        f_color = vec4(vColor, 1.0);
-                    }
-                "#;
+                let vertex_shader_src = include_str!("../../shaders/test_vertex_shader.vert");
+                let fragment_shader_src = include_str!("../../shaders/test_fragment_shader.fs");
 
                 let program = Program::from_source(
                     self.display.as_ref().unwrap(),
@@ -211,13 +222,29 @@ mod test {
 
                 let entity = self.world.entity();
 
+                let image = image::load(
+                    Cursor::new(&include_bytes!("../../screenshots/rune.png")),
+                    image::ImageFormat::Png,
+                )
+                .unwrap()
+                .to_rgba8();
+                let dimensions = image.dimensions();
+                let image = glium::texture::RawImage2d::from_raw_rgba_reversed(
+                    &image.into_raw(),
+                    dimensions,
+                );
+                let texture =
+                    glium::texture::SrgbTexture2d::new(self.display.as_ref().unwrap(), image)
+                        .unwrap();
+
                 self.world
-                    .with::<Transform>(entity, Transform(-5.0))
+                    .with::<Transform>(entity, Transform(-0.5))
                     .with::<ProgramContainer>(entity, ProgramContainer(program))
                     .with::<VertexBufferContainer>(entity, VertexBufferContainer(buffer))
+                    .with(entity, TwoDimensionalRgbTextureContainer(texture))
                     .with::<NoIndicesContainer>(
                         entity,
-                        NoIndicesContainer(NoIndices(PrimitiveType::TrianglesList)),
+                        NoIndicesContainer(NoIndices(PrimitiveType::TriangleStrip)),
                     )
                     .with_system(InternalSystem)
                     .with_system(TransformSystem);
@@ -237,7 +264,7 @@ mod test {
                 }
 
                 let next_frame_time = Instant::now() + Duration::from_nanos(16_666_667);
-                *flow = ControlFlow::WaitUntil(next_frame_time);
+                // *flow = ControlFlow::WaitUntil(next_frame_time);
 
                 self.world.update(self.display.as_ref().unwrap());
             }

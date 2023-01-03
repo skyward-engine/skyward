@@ -248,12 +248,17 @@ impl EntityManager {
     query!(query_entity_two<T1, T2>);
     query!(query_entity_three<T, T2, T3>);
     query!(query_entity_four<T1, T2, T3, T4>);
+    query!(query_entity_five<T1, T2, T3, T4, T5>);
 }
 
+#[derive(Debug)]
 pub struct EntityQueryTable {
     query_cache: HashMap<TypeId, Vec<usize>>,
     frames: HashMap<TypeId, u64>,
 }
+
+unsafe impl Send for EntityQueryTable {}
+unsafe impl Sync for EntityQueryTable {}
 
 impl EntityQueryTable {
     pub fn new() -> Self {

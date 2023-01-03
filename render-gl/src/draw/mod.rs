@@ -1,5 +1,5 @@
 use glium::{implement_vertex, vertex::BufferCreationError, Display, VertexBuffer};
-use std::{collections::HashMap, hash::Hash};
+use std::{borrow::Cow, collections::HashMap, hash::Hash};
 
 pub trait ToBuffer: Sized + Copy {
     fn to_buffer(
@@ -37,32 +37,60 @@ where
 }
 
 #[derive(Copy, Clone)]
-pub struct Vertex {
+pub struct ColoredVertex {
     pub position: [f32; 3],
     pub color: [f32; 3],
 }
 
-implement_vertex!(Vertex, position, color);
+#[derive(Copy, Clone)]
+pub struct TexturedVertex {
+    pub position: [f32; 3],
+    pub tex_pos: [f32; 2],
+}
+
+implement_vertex!(ColoredVertex, position, color);
+implement_vertex!(TexturedVertex, position, tex_pos);
 
 #[macro_export]
 macro_rules! vertex {
     ([$x:expr, $y:expr, $z:expr], [$r:expr, $g:expr, $b:expr]) => {
-        Vertex {
+        ColoredVertex {
             position: [$x, $y, $z],
             color: [$r, $g, $b],
         }
     };
     ([$x:expr, $y:expr], [$r:expr, $g:expr, $b:expr]) => {
-        Vertex {
+        ColoredVertex {
             position: [$x, $y, 1.0],
             color: [$r, $g, $b],
         }
     };
+    ([$x:expr, $y:expr, $z:expr], [$xt:expr, $yt:expr]) => {
+        TexturedVertex {
+            position: [$x, $y, $z],
+            tex_pos: [$xt, $yt],
+        }
+    };
+    ([$x:expr, $y:expr], [$xt:expr, $yt:expr]) => {
+        TexturedVertex {
+            position: [$x, $y, 1.0],
+            tex_pos: [$xt, $yt],
+        }
+    };
 }
 
-impl ToBuffer for Vertex {
+impl ToBuffer for ColoredVertex {
     fn to_buffer(
         display: &glium::Display,
+        shape: &[Self],
+    ) -> Result<VertexBuffer<Self>, BufferCreationError> {
+        VertexBuffer::new(display, shape)
+    }
+}
+
+impl ToBuffer for TexturedVertex {
+    fn to_buffer(
+        display: &Display,
         shape: &[Self],
     ) -> Result<VertexBuffer<Self>, BufferCreationError> {
         VertexBuffer::new(display, shape)
