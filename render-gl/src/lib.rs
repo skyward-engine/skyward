@@ -105,7 +105,7 @@ mod test {
                     let (buffer, program, indices, transform) = manager.query_entity_four::<VertexBufferContainer, ProgramContainer, NoIndicesContainer, Transform>(entity)?;
                     let mut target = display.draw();
 
-                    target.clear_color(1.0, 0.1, 0.5, 1.0);
+                    target.clear_color(1.0, 1.0, 1.0, 1.0);
 
                     target
                         .draw(
