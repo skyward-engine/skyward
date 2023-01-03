@@ -1,5 +1,5 @@
 # FOX Engine
-<img src="(https://imgur.com/a/T4uJdOQ" width="40%" align="right">
+<img src="https://imgur.com/a/T4uJdOQ" width="40%" align="right">
 
 A fast, extensive game engine written in Rust.
 
