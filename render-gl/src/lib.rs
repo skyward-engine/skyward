@@ -16,6 +16,7 @@ pub mod draw;
 pub struct Window {}
 
 impl Window {
+    #![allow(dead_code)]
     fn create(
         title: &str,
         mut platform: Box<dyn PlatformHandle>,
@@ -49,13 +50,10 @@ trait PlatformHandle {
 
 #[cfg(test)]
 mod test {
-    use std::{
-        any::Any,
-        time::{Duration, Instant},
-    };
+    use std::time::{Duration, Instant};
 
-    use ecs::Container;
-    use ecs_macro::Component;
+    use ecs::{system::System, world::World};
+    use ecs_macro::EntityComponent;
     use glium::{
         glutin::{
             event::{Event, WindowEvent},
@@ -75,28 +73,63 @@ mod test {
     fn test_platform() {
         struct MetaPlatform {
             display: Option<Display>,
-            entities: Vec<Entity>,
+            world: World<Display>,
         }
 
         impl MetaPlatform {
             pub fn new() -> Self {
                 Self {
                     display: None,
-                    entities: vec![],
+                    world: World::new(),
                 }
             }
         }
 
-        #[derive(Component)]
-        struct Entity {
-            attrs: Vec<Box<dyn Any>>,
-        }
+        struct InternalSystem;
 
-        impl Entity {
-            pub fn new() -> Self {
-                Self { attrs: vec![] }
+        impl System<Display> for InternalSystem {
+            fn update(
+                &mut self,
+                manager: &mut ecs::entity::EntityManager,
+                table: &mut ecs::entity::EntityQueryTable,
+                display: &Display,
+            ) -> Option<()> {
+                let entities =
+                    table.query::<(VertexBufferContainer, ProgramContainer, NoIndicesContainer)>(
+                        manager,
+                    )?;
+
+                for entity in entities {
+                    let (buffer, program, indices) = manager.query_entity_three::<VertexBufferContainer, ProgramContainer, NoIndicesContainer>(entity)?;
+                    let mut target = display.draw();
+
+                    target.clear_color(1.0, 0.1, 0.5, 1.0);
+
+                    target
+                        .draw(
+                            &buffer.0,
+                            &indices.0,
+                            &program.0,
+                            &EmptyUniforms,
+                            // &uniform! {
+                            //     t: *t
+                            // },
+                            &Default::default(),
+                        )
+                        .unwrap();
+                    target.finish().unwrap(); // todo: unwrap
+                }
+
+                None
             }
         }
+
+        #[derive(EntityComponent)]
+        struct ProgramContainer(Program);
+        #[derive(EntityComponent)]
+        struct VertexBufferContainer(VertexBuffer<Vertex>);
+        #[derive(EntityComponent)]
+        struct NoIndicesContainer(NoIndices);
 
         impl PlatformHandle for MetaPlatform {
             fn initialize_display(&mut self, display: Display) {
@@ -119,9 +152,13 @@ mod test {
 
                     in vec3 position;
                     in vec3 color;
+                    // uniform float t;
                     out vec3 vColor;
 
                     void main() {
+                        // vec2 pos = position;
+                        // pos.x += t;
+
                         gl_Position = vec4(position, 1.0);
                         vColor = color;
                     }
@@ -146,12 +183,16 @@ mod test {
                 )
                 .unwrap();
 
-                let entity = Entity::new()
-                    .with::<Program>(program)
-                    .with::<VertexBuffer<Vertex>>(buffer)
-                    .with::<NoIndices>(NoIndices(PrimitiveType::TrianglesList));
+                let entity = self.world.entity();
 
-                self.entities.push(entity);
+                self.world
+                    .with::<ProgramContainer>(entity, ProgramContainer(program))
+                    .with::<VertexBufferContainer>(entity, VertexBufferContainer(buffer))
+                    .with::<NoIndicesContainer>(
+                        entity,
+                        NoIndicesContainer(NoIndices(PrimitiveType::TrianglesList)),
+                    )
+                    .with_system(InternalSystem);
             }
 
             fn handle_main_loop<'a>(
@@ -160,37 +201,17 @@ mod test {
                 _: &EventLoopWindowTarget<()>,
                 flow: &mut ControlFlow,
             ) {
-                let display = self.display.as_ref().unwrap();
-                let mut target = display.draw();
-
-                target.clear_color(1.0, 0.1, 0.5, 1.0);
-
-                let entity = self.entities.first().unwrap();
-
-                let vertex_buffer = entity.get::<VertexBuffer<Vertex>>().unwrap();
-                let program = entity.get::<Program>().unwrap();
-                let indices = entity.get::<NoIndices>().unwrap();
-
-                target
-                    .draw(
-                        vertex_buffer,
-                        indices,
-                        program,
-                        &EmptyUniforms,
-                        &Default::default(),
-                    )
-                    .unwrap();
-                target.finish().unwrap(); // todo: unwrap
-
-                let next_frame_time = Instant::now() + Duration::from_nanos(16_666_667);
-                *flow = ControlFlow::WaitUntil(next_frame_time);
-
                 if let Event::WindowEvent { event, .. } = event {
                     match event {
                         WindowEvent::CloseRequested => *flow = ControlFlow::Exit,
                         _ => (),
                     };
                 }
+
+                let next_frame_time = Instant::now() + Duration::from_nanos(16_666_667);
+                *flow = ControlFlow::WaitUntil(next_frame_time);
+
+                self.world.update(self.display.as_ref().unwrap());
             }
         }
 
