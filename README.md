@@ -4,10 +4,10 @@ A fast, extensive game engine written in Rust.
 
 Example of a game made with FOX Engine
 ## Features
-    * Fast and asynchronous ECS design, with a dedicated ECS section for internal rendering
-    * OpenGL-based rendering, with support for both 2D and 3D operations
-    * Uses the glium crate for rendering
-    * Minimal codebase with minimal dependencies
+* Fast and asynchronous ECS design, with a dedicated ECS section for internal rendering
+* OpenGL-based rendering, with support for both 2D and 3D operations
+* Uses the glium crate for rendering
+* Minimal codebase with minimal dependencies
 
 # Fast and asynchronous ECS design
 
