@@ -1,4 +1,4 @@
-# FOX Engine [![glium version](https://img.shields.io/crates/v/glium.svg)](https://crates.io/crates/glium) [![fox version](https://img.shields.io/crates/v/fox.svg)](https://crates.io/crates/fox)
+# FOX Engine [![glium crate version](https://img.shields.io/crates/v/glium.svg?label=glium)](https://crates.io/crates/glium) [![fox crate version](https://img.shields.io/crates/v/fox.svg?label=fox)](https://crates.io/crates/fox)
 <img src="https://github.com/therealnv6/fox/blob/main/screenshots/example-1.png?raw=true" width="40%" align="right">
 
 A fast, extensive game engine written in Rust.
