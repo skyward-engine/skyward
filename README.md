@@ -20,4 +20,4 @@ We welcome contributions to FOX Engine! If you have an idea for a new feature or
 
 ## License
 
-FOX Engine is licensed under the MIT License. See [LICENSE](LICENSE) for more details.
+FOX Engine is licensed under the MIT License. See [LICENSE](LICENSE.md) for more details.
