@@ -69,6 +69,80 @@ impl ToBuffer for Vertex {
     }
 }
 
+pub mod internal {
+    use ecs::system::System;
+    use glium::{uniform, Display, Surface};
+
+    use super::mesh::{Mesh, Transform};
+
+    pub struct InternalSystem;
+
+    impl System<Display> for InternalSystem {
+        fn update(
+            &mut self,
+            manager: &mut ecs::entity::EntityManager,
+            table: &mut ecs::entity::EntityQueryTable,
+            display: &Display,
+        ) -> Option<()> {
+            for entity in table.query_single::<Mesh>(manager)? {
+                let mut target = display.draw();
+
+                let entries = manager.query_entity_two::<Mesh, Transform>(*entity);
+                let (mesh, transform) = (entries.0?, entries.1);
+
+                let mut matrix: [[f32; 4]; 4] = [
+                    [1.0, 0.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0, 1.0],
+                    [0.0, 0.0, 1.0, 0.0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ];
+
+                if let Some(transform) = transform {
+                    matrix = transform.inner();
+                }
+
+                target.clear_color(1.0, 1.0, 1.0, 1.0);
+
+                match &mesh.texture {
+                    Some(texture) => {
+                        let uniform = uniform! {
+                            matrix: matrix,
+                            tex: texture,
+                        };
+                        target
+                            .draw(
+                                &mesh.vertex_buffer,
+                                mesh.index_buffer.clone(),
+                                &mesh.program,
+                                &uniform,
+                                &Default::default(),
+                            )
+                            .unwrap();
+                    }
+                    None => {
+                        let uniform = uniform! {
+                            matrix: matrix,
+                        };
+                        target
+                            .draw(
+                                &mesh.vertex_buffer,
+                                mesh.index_buffer.clone(),
+                                &mesh.program,
+                                &uniform,
+                                &Default::default(),
+                            )
+                            .unwrap();
+                    }
+                }
+
+                target.finish().unwrap();
+            }
+
+            None
+        }
+    }
+}
+
 pub mod mesh {
     use std::io::Cursor;
 

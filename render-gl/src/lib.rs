@@ -8,20 +8,18 @@ mod test {
     use std::time::{Duration, Instant};
 
     use ecs::{system::System, world::World};
-    use ecs_macro::EntityComponent;
     use glium::{
         glutin::{
             event::{Event, WindowEvent},
             event_loop::{ControlFlow, EventLoopWindowTarget},
         },
         index::{NoIndices, PrimitiveType},
-        uniform,
-        uniforms::{AsUniformValue, Uniforms, UniformsStorage},
-        Display, Surface,
+        Display,
     };
 
     use crate::{
         draw::{
+            internal::InternalSystem,
             mesh::{Mesh, Transform},
             Vertex,
         },
@@ -44,73 +42,7 @@ mod test {
             }
         }
 
-        struct InternalSystem;
         struct TransformSystem;
-
-        impl System<Display> for InternalSystem {
-            fn update(
-                &mut self,
-                manager: &mut ecs::entity::EntityManager,
-                table: &mut ecs::entity::EntityQueryTable,
-                display: &Display,
-            ) -> Option<()> {
-                for entity in table.query_single::<Mesh>(manager)? {
-                    let mut target = display.draw();
-
-                    let entries = manager.query_entity_two::<Mesh, Transform>(*entity);
-                    let (mesh, _) = (entries.0?, entries.1);
-
-                    let matrix: [[f32; 4]; 4] = [
-                        [1.0, 0.0, 0.0, 0.0],
-                        [0.0, 1.0, 0.0, 1.0],
-                        [0.0, 0.0, 1.0, 0.0],
-                        [0.0, 0.0, 0.0, 1.0],
-                    ];
-
-                    // if let Some(transform) = transform {
-                    //     matrix = transform.inner();
-                    // }
-
-                    target.clear_color(1.0, 1.0, 1.0, 1.0);
-
-                    match &mesh.texture {
-                        Some(texture) => {
-                            let uniform = uniform! {
-                                matrix: matrix,
-                                tex: texture,
-                            };
-                            target
-                                .draw(
-                                    &mesh.vertex_buffer,
-                                    mesh.index_buffer.clone(),
-                                    &mesh.program,
-                                    &uniform,
-                                    &Default::default(),
-                                )
-                                .unwrap();
-                        }
-                        None => {
-                            let uniform = uniform! {
-                                matrix: matrix,
-                            };
-                            target
-                                .draw(
-                                    &mesh.vertex_buffer,
-                                    mesh.index_buffer.clone(),
-                                    &mesh.program,
-                                    &uniform,
-                                    &Default::default(),
-                                )
-                                .unwrap();
-                        }
-                    }
-
-                    target.finish().unwrap();
-                }
-
-                None
-            }
-        }
 
         impl System<Display> for TransformSystem {
             fn update(
@@ -121,21 +53,12 @@ mod test {
             ) -> Option<()> {
                 for entity in table.query_single::<Transform>(manager)? {
                     let transform = manager.query_entity::<Transform>(*entity).0?;
-                    transform.rotate(1.0, (1.0, 1.0, 1.0));
+                    transform.rotate(45.0, (1.0, 0.0, 0.0));
                 }
 
                 None
             }
         }
-
-        #[derive(EntityComponent)]
-        struct MatrixContainer([[f32; 4]; 4]);
-
-        #[derive(EntityComponent)]
-        struct UniformContainer<T, R>(UniformsStorage<'static, T, R>)
-        where
-            T: AsUniformValue + 'static,
-            R: Uniforms + 'static;
 
         impl PlatformHandle for MetaPlatform {
             fn initialize_display(&mut self, display: Display) {
@@ -143,13 +66,9 @@ mod test {
             }
 
             fn initialize_cache(&mut self) {
-                let vertex_shader_src = include_str!("../../shaders/test_vertex_shader.vert");
-                let fragment_shader_src = include_str!("../../shaders/test_fragment_shader.fs");
-
                 let entity = self.world.entity();
 
                 self.world
-                    // .with::<Transform>(entity, Transform(-0.5))
                     .with::<Transform>(entity, Transform::new())
                     .with::<Mesh>(
                         entity,
@@ -162,8 +81,8 @@ mod test {
                                 vertex!([0.5, 0.5], [1.0, 1.0]),
                             ],
                             NoIndices(PrimitiveType::TriangleStrip).into(),
-                            vertex_shader_src,
-                            fragment_shader_src,
+                            include_str!("../../shaders/test_vertex_shader.vert"),
+                            include_str!("../../shaders/test_fragment_shader.fs"),
                         )
                         .unwrap()
                         .with_img_texture(
