@@ -66,7 +66,7 @@ mod test {
         let entity = world.entity();
 
         world
-            .with::<Named>(entity, Named("NV6"))
+            .with::<Named>(entity, Named("NV6BESTDEV2K19"))
             .with::<Position>(entity, Position { x: 37.3, y: 37.1 });
 
         for _ in 0..3 {
