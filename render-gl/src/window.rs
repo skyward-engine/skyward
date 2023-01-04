@@ -10,6 +10,8 @@ use glium::{
     Display,
 };
 
+use crate::draw::mesh::IndexBufferCreator;
+
 pub struct Window {}
 
 impl Window {
@@ -24,8 +26,11 @@ impl Window {
 
         let display = Display::new(window_builder, context_builder, &event_loop)?;
 
+        let buffer_creator = Box::new(IndexBufferCreator::new());
+        let leaked_buffer = Box::leak(buffer_creator);
+
         platform.initialize_display(display);
-        platform.initialize_cache();
+        platform.initialize_cache(leaked_buffer);
 
         event_loop.run(move |event, target, control_flow| {
             (*platform).handle_main_loop(event, target, control_flow)
@@ -36,7 +41,7 @@ impl Window {
 pub trait PlatformHandle {
     fn initialize_display(&mut self, display: Display);
 
-    fn initialize_cache(&mut self);
+    fn initialize_cache(&mut self, buffer_creator: &'static mut IndexBufferCreator);
 
     fn handle_main_loop<'a>(
         &mut self,

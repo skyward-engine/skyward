@@ -14,19 +14,20 @@ pub fn derive_ecs_component(item: TokenStream) -> TokenStream {
         }
         .into()
     } else {
-        let where_clause = &generics.where_clause.as_ref();
-
-        match where_clause {
+        let where_clause = match generics.where_clause.as_ref() {
             Some(clause) => quote! {
-                impl #generics ecs::component::Component for #name #generics
                 #clause
+            },
+            None => quote!(),
+        };
+
+        panic!(
+            "{}",
+            quote! {
+                impl #generics ecs::component::Component for #name #generics
+                #where_clause
                 {}
             }
-            .into(),
-            None => quote! {
-                impl #generics ecs::component::Component for #name #generics {}
-            }
-            .into(),
-        }
+        )
     }
 }
