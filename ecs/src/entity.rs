@@ -103,17 +103,17 @@ macro_rules! tuple {
 
 macro_rules! query {
     ($name:ident<$($T:ident),+>) => {
-        pub fn $name<$($T : component::Component,)+>(&mut self, entity: usize) -> Option<($(&mut $T,)+)> {
-            Some((
+        pub fn $name<$($T : component::Component,)+>(&mut self, entity: usize) -> ($(Option<&mut $T>,)+) {
+            (
                 $(
                     {
                         let type_id = TypeId::of::<$T>();
-                        let manager: &mut SimpleComponentManager<$T> = cast_manager_mut_unsafe(self.managers.get(&type_id)?);
+                        let manager: &mut SimpleComponentManager<$T> = cast_manager_mut_unsafe(self.managers.get(&type_id).unwrap());
 
-                        manager.component_mut(entity).unwrap()
+                        manager.component_mut(entity)
                     },
                 )+
-            ))
+            )
         }
     }
 }

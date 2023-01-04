@@ -28,14 +28,21 @@ mod test {
 
                 for entity in entity_ids {
                     // get the Position component of the entity
-                    let (position, name) = manager.query_entity_two::<Position, Named>(entity)?;
+                    let queried = manager.query_entity_two::<Position, Named>(entity);
+                    let (position, name) = (queried.0?, queried.1);
+
                     // let position = manager.query_entity::<Position>(entity)?;
 
                     // mutate the x/y of the entity
                     position.x += 0.1;
                     position.y += 0.3;
 
-                    println!("{} moved to: {:.1}, {:.1}", name.0, position.x, position.y);
+                    println!(
+                        "{} moved to: {:.1}, {:.1}",
+                        name.unwrap().0,
+                        position.x,
+                        position.y
+                    );
                 }
 
                 None
