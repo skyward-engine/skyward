@@ -4,43 +4,51 @@ use std::{
     mem::transmute,
 };
 
-/// Components are any kind of storage which can be linked to an entity.
+/// A `Component` is a piece of data that can be linked to an entity.
 ///
-/// This trait can automatically be implemented by using the `ecs-macors::Component` derive macro, which
-/// will generate the following code:
+/// # Deriving
+///
+/// This trait can be automatically implemented for a struct using the `ecs-macros::EntityComponent` derive macro:
+///
+/// ```
+/// #[derive(EntityComponent)]
+/// struct MyStruct;
+/// ```
+///
+/// This will generate the following implementation:
+///
 /// ```
 /// impl Component for MyStruct {}
 /// ```
 ///
-/// Examples of components, which are supported by our [World] system.
+/// # Examples
+///
 /// ```
-/// #[derive(Component)]
+/// #[derive(EntityComponent)]
 /// struct Position {
 ///     x: i32,
 ///     y: i32,
 /// }
-/// ```
 ///
-/// ```
 /// #[derive(Component)]
 /// struct Named(&'static str);
 /// ```
+///
+/// These structs can be used as components within a `World` system.
 pub trait Component: Sized + Any {}
 
-/// SimpleComponentManager stores the following things:
-/// - Components
-///     - These are all of the data components, stored in a vector.
-/// - Entities
-///     - These are all of the entities which hold data within this manager, so every entity which has
-///       any kind of data with the type of T.
-/// - Entity Indexes
-///     - These indexes are the indexes of the entities' data, these indexes are used to query the contents
-///       of the components vector. This is represented in a HashMap<EntityId, ComponentIndex>
+/// `SimpleComponentManager` is a struct that stores and manages components, entities, and entity indexes.
+/// It implements the [ComponentManager] and [TypedComponentManager] traits.
 ///
-/// This type implements the two ComponentManager trais: [ComponentManager] and [TypedComponentManager]. Go to
-/// their respective docs for further information on these.
+/// # Fields
 ///
-/// This is a wrapper around the [ComponentManager] trait.
+/// - `components`: A vector of data components.
+/// - `entities`: A vector of entities that hold data of type `T`.
+/// - `entity_idx`: A `HashMap` that maps an entity's ID to its component index. This is used to query the contents of the `components` vector.
+///
+/// # Type Parameters
+///
+/// - `T`: The type of component being managed. Must implement the `Component` trait.
 pub struct SimpleComponentManager<T>
 where
     T: Component,
@@ -160,21 +168,33 @@ pub fn cast_manager_mut_unsafe<T: 'static + Component>(
     unsafe { transmute(ptr) }
 }
 
-/// This trait holds all of the type-independent functions, which means
-/// all type-indepdendent functions should also be added to this trait.
+/// `ComponentManager` is a marker trait that defines type-independent functions for managing components.
+/// It is implemented for the [SimpleComponentManager] struct and allows for bridging between [SimpleComponentManager] and [TypedComponentManager]
+/// without having to store the [SimpleComponentManager] struct. This allows for dynamic generic types instead of being limited to a single generic type.
 ///
-/// This is a marker type, allowing to bridge between [SimpleComponentManager] and [ComponentManager]
-/// without having to store the [SimpleComponentManager] struct, which means we can have dynamic
-/// generic types instead of being limited to a singular generic type.
+/// # Methods
+///
+/// - `has`: Returns a boolean indicating whether the given entity has a component of this type.
+/// - `clear`: Removes the component of this type from the given entity.
+/// - `get_type_id`: Returns the `TypeId` of the component type being managed.
 pub trait ComponentManager: Any + As<dyn Any> {
     fn has(&self, entity: usize) -> bool;
     fn clear(&mut self, entity_id: usize);
     fn get_type_id(&self) -> TypeId;
 }
 
-/// This trait holds all of the type-dependent functions, this is separated from [ComponentManager] so
-/// we can store the ComponentManager object without infering the type parameter. More information on this
-/// can be found under the [ComponentManager] docs.
+/// `TypedComponentManager` is a trait that defines type-dependent functions for managing components. It is separated from [ComponentManager]
+/// so that the [ComponentManager] object can be stored without inferring the type parameter.
+///
+/// # Type Parameters
+///
+/// - `T`: The type of component being managed. Must implement the `Component` trait.
+///
+/// # Methods
+///
+/// - `with`: Associates a component of type `T` with the given entity.
+/// - `component`: Returns a reference to the component of type `T` for the given entity, if it exists.
+/// - `component_mut`: Returns a mutable reference to the component of type `T` for the given entity, if it exists.
 pub trait TypedComponentManager<T>: ComponentManager {
     fn with(&mut self, entity: usize, component: T);
     fn component(&self, entity: usize) -> Option<&T>;

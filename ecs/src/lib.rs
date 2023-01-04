@@ -31,8 +31,6 @@ mod test {
                     let queried = manager.query_entity_two::<Position, Named>(entity);
                     let (position, name) = (queried.0?, queried.1);
 
-                    // let position = manager.query_entity::<Position>(entity)?;
-
                     // mutate the x/y of the entity
                     position.x += 0.1;
                     position.y += 0.3;

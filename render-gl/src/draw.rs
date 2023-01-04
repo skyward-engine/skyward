@@ -78,6 +78,19 @@ pub mod internal {
     pub struct InternalSystem;
 
     impl System<Display> for InternalSystem {
+        /// Renders the mesh components of all entities that have both a `Mesh` and a `Transform` component.
+        /// If an entity has a `Mesh` component but no `Transform` component, the default identity matrix is used.
+        ///
+        /// # Parameters
+        ///
+        /// - `&mut self`: This system instance.
+        /// - `manager`: The `EntityManager` that manages the entities in the world.
+        /// - `table`: The `EntityQueryTable` used to query the entities in the world.
+        /// - `display`: A `Display` object that is used to draw to the screen.
+        ///
+        /// # Returns
+        ///
+        /// If any of the component queries fail, an `Option` containing `None` is returned. Otherwise, an `Option` containing `Some(())` is returned.
         fn update(
             &mut self,
             manager: &mut ecs::entity::EntityManager,
@@ -156,15 +169,46 @@ pub mod mesh {
     };
     use image::ImageFormat;
 
+    /// A struct representing a 3D mesh.
+    ///
+    /// A mesh consists of a vertex buffer, an index buffer, a program for rendering the mesh, and an optional texture.
+    /// The vertex buffer contains the vertex data for the mesh, and the index buffer specifies how the vertices should be connected to form the mesh.
+    /// The program consists of vertex and fragment shaders, which are responsible for transforming the vertices and applying colors or textures to the surface of the mesh.
+    /// The optional texture can be applied to the surface of the mesh, adding an additional level of detail.
     #[derive(EntityComponent)]
     pub struct Mesh {
+        /// The vertex buffer for the mesh.
+        ///
+        /// The vertex buffer stores the vertex data for the mesh. This data includes the position, normal, and texture coordinates for each vertex in the mesh.
         pub vertex_buffer: VertexBuffer<Vertex>,
+        /// The index buffer for the mesh.
+        ///
+        /// The index buffer specifies how the vertices in the vertex buffer should be connected to form the mesh. It is an array of integers that reference the vertices in the vertex buffer.
         pub index_buffer: IndicesSource<'static>,
+        /// The program for rendering the mesh.
+        ///
+        /// The program consists of a vertex shader and a fragment shader. The vertex shader is responsible for transforming the vertices of the mesh, and the fragment shader is responsible for applying colors or textures to the surface of the mesh.
         pub program: Program,
+        /// An optional texture for the mesh.
+        ///
+        /// The texture can be applied to the surface of the mesh, adding an additional level of detail. If no texture is provided, the mesh will be rendered with a solid color.
         pub texture: Option<Texture2d>,
     }
 
     impl Mesh {
+        /// Creates a new `Mesh` instance.
+        ///
+        /// # Arguments
+        ///
+        /// * `display` - The display to use for creating the vertex buffer and program.
+        /// * `vertexes` - The vertex data for the mesh.
+        /// * `index_buffer` - The index buffer for the mesh.
+        /// * `vertex_shader` - The vertex shader source code.
+        /// * `fragment_shader` - The fragment shader source code.
+        ///
+        /// # Returns
+        ///
+        /// A new `Mesh` instance, or a `ProgramCreationError` if there was a problem creating the program.
         pub fn new(
             display: &Display,
             vertexes: &[Vertex],
@@ -185,6 +229,30 @@ pub mod mesh {
             Ok(constructed)
         }
 
+        /// Creates a new `Mesh` instance with an image texture.
+        ///
+        /// # Arguments
+        ///
+        /// * `format` - The image format of the texture.
+        /// * `display` - The display to use for creating the texture.
+        /// * `bytes` - The bytes of the image data.
+        ///
+        /// # Returns
+        ///
+        /// A new `Mesh` instance with an image texture.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// use fox::render::draw::mesh::{Mesh, Vertex};
+        /// use glium::{Display, ImageFormat};
+        /// use std::fs::File;
+        /// use std::io::Read;
+        ///
+        /// let mesh = Mesh::new(display, &[], &[], "", "")
+        ///     .unwrap()
+        ///     .with_img_texture(ImageFormat::Png, display, include_bytes!("picture.png"));
+        /// ```
         pub fn with_img_texture(
             mut self,
             format: ImageFormat,
@@ -195,9 +263,7 @@ pub mod mesh {
             let dimensions = image.dimensions();
             let image = RawImage2d::from_raw_rgba_reversed(&image.into_raw(), dimensions);
             let texture = Texture2d::new(display, image).unwrap();
-
             self.texture = Some(texture);
-
             self
         }
     }
@@ -260,7 +326,6 @@ pub mod mesh {
         }
 
         pub fn scale(&mut self, x: f32, y: f32, z: f32) {
-            // Create a scaling matrix and multiply it with the current transformation matrix
             let scale_matrix = Matrix4::from([
                 [x, 0.0, 0.0, 0.0],
                 [0.0, y, 0.0, 0.0],
