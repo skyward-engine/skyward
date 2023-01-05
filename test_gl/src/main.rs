@@ -15,8 +15,8 @@ use render_gl::{
     container::{Matrix4, Vec3},
     draw::{
         internal::{InternalSystem, InternalTransformSystem},
-        mesh::{DrawParametersComponent, Transform},
-        Vertex,
+        transform::{DrawParametersComponent, Transform},
+        vertex::Vertex,
     },
     mesh::Mesh,
     uniform::{perspective::Perspective, MeshUniform},

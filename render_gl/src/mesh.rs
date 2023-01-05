@@ -2,12 +2,19 @@ use std::io::Cursor;
 
 use ecs_macro::EntityComponent;
 use glium::{
-    index::IndicesSource, texture::RawImage2d, Display, Program, ProgramCreationError, Texture2d,
-    VertexBuffer,
+    index::IndicesSource,
+    texture::{RawImage2d, Texture3d},
+    Display, Program, ProgramCreationError, Texture2d, VertexBuffer,
 };
 use image::ImageFormat;
 
-use crate::draw::{mesh::TextureType, ToBuffer, Vertex};
+use crate::draw::vertex::{ToBuffer, Vertex};
+
+#[derive(Debug)]
+pub enum TextureType {
+    Texture2d(Texture2d),
+    Texture3d(Texture3d),
+}
 
 /// A struct representing a 3D mesh.
 ///

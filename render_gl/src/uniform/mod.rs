@@ -3,7 +3,8 @@ use glium::uniforms::{UniformValue, Uniforms};
 
 use crate::{
     container::{Matrix4, Vec3},
-    draw::mesh::{TextureType, Transform},
+    draw::transform::Transform,
+    mesh::TextureType,
 };
 
 use self::perspective::Perspective;
