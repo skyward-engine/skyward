@@ -3,6 +3,7 @@ name = "skyward"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
+description = "A fast, extensive game engine written in Rust, utilizing glium."
 
 [workspace]
 members = [
