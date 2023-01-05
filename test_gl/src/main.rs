@@ -71,11 +71,17 @@ impl System<Display> for CameraTurnSystem {
         _: &Display,
     ) -> Option<()> {
         for entity in table.query_single::<Camera>(manager)? {
+            let mut pos = 0.00006;
             let camera = manager.query_entity::<Camera>(*entity).0?;
-            let old_pos = camera.ref_position();
-            // let old_dir = camera.ref_direction();
 
-            camera.position(Vec3::from([0.00002, -0.000001, 0.00001]) + *old_pos);
+            if camera.ref_position()[0] > 2.5 {
+                pos = -pos;
+            }
+
+            camera
+                .add_position(Vec3::from([pos, pos, pos]))
+                .add_direction(Vec3::from([-pos, -pos, -pos]))
+                .add_up(Vec3::from([pos, pos, pos]));
         }
         None
     }
@@ -175,7 +181,7 @@ impl PlatformHandle for MetaPlatform {
                 .unwrap()
                 .gl_window()
                 .window()
-                .set_title(&format!("My Window - FPS: {:.2}", fps));
+                .set_title(&format!("FOX [{:.2}] (teapot demo)", fps));
 
             self.fps_counter = 0;
             self.fps_counter_time = std::time::Instant::now();
@@ -198,5 +204,5 @@ impl PlatformHandle for MetaPlatform {
 // todo: add profiling
 #[profiling::function]
 fn main() {
-    Window::create("Hey!", Box::new(MetaPlatform::new())).unwrap();
+    Window::create("FOX (teapot demo)", Box::new(MetaPlatform::new())).unwrap();
 }
