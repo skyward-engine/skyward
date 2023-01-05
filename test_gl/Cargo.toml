@@ -1,0 +1,21 @@
+[package]
+name = "test_gl"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+glium = "0.32.1"
+profiling = "1.0.7"
+image = "*"
+ecs = { path = "../ecs" }
+ecs_macro = { path = "../ecs_macro" }
+render_gl = { path = "../render_gl" }
+
+[features]
+profile-with-puffin = ["profiling/profile-with-puffin"]
+profile-with-optick = ["profiling/profile-with-optick"]
+profile-with-superluminal = ["profiling/profile-with-superluminal"]
+profile-with-tracing = ["profiling/profile-with-tracing"]
+profile-with-tracy = ["profiling/profile-with-tracy"]
