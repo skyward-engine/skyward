@@ -6,8 +6,11 @@ in vec3 normal;
 out vec3 v_normal;
 
 uniform mat4 matrix;
+uniform mat4 view;
+uniform mat4 perspective;
 
 void main(){
-    v_normal=transpose(inverse(mat3(matrix)))*normal;
-    gl_Position=matrix*vec4(position,1.);
+    mat4 modelview=view*matrix;
+    v_normal=transpose(inverse(mat3(modelview)))*normal;
+    gl_Position=perspective*modelview*vec4(position,1.);
 }

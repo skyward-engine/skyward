@@ -1,4 +1,4 @@
-use std::ops::{Index, IndexMut};
+use std::ops::{Add, Index, IndexMut};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Matrix4 {
@@ -166,6 +166,19 @@ impl Vec4 {
     }
 }
 
+impl Add for Vec4 {
+    type Output = Vec4;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Vec4::from([
+            self[0] + rhs[0],
+            self[1] + rhs[1],
+            self[2] + rhs[2],
+            self[3] + rhs[3],
+        ])
+    }
+}
+
 impl From<[f32; 4]> for Vec4 {
     fn from(value: [f32; 4]) -> Self {
         Self {
@@ -220,6 +233,14 @@ impl Vec3 {
 
     pub fn inner(&self) -> [f32; 3] {
         [self[0], self[1], self[2]]
+    }
+}
+
+impl Add for Vec3 {
+    type Output = Vec3;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Vec3::from([self[0] + rhs[0], self[1] + rhs[1], self[2] + rhs[2]])
     }
 }
 

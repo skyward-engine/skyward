@@ -121,6 +121,8 @@ pub mod internal {
     use ecs::system::System;
     use glium::{uniforms::EmptyUniforms, Display, Surface};
 
+    use crate::camera::Camera;
+
     use super::mesh::{DrawParametersComponent, Mesh, MeshUniform, Transform};
 
     pub struct InternalSystem;
@@ -146,6 +148,21 @@ pub mod internal {
             table: &mut ecs::entity::EntityQueryTable,
             display: &Display,
         ) -> Option<()> {
+            let view = {
+                let entity = table
+                    .query_single::<Camera>(manager)
+                    .expect("No camera is initialized!")
+                    .first()
+                    .expect("No camera is initialized!");
+
+                let entity = *entity;
+
+                let view = manager.query_entity::<Camera>(entity).0;
+                let view = view.expect("No camera is initialized!");
+
+                view.view_matrix()
+            };
+
             for entity in table.query_single::<Mesh>(manager)? {
                 let mut target = display.draw();
 
@@ -162,6 +179,8 @@ pub mod internal {
 
                 match uniform {
                     Some(uniform) => {
+                        let uniform = uniform.view_matrix(view);
+
                         target
                             .draw(
                                 &mesh.vertex_buffer,
@@ -230,6 +249,7 @@ pub mod mesh {
     #[derive(EntityComponent, Debug)]
     pub struct MeshUniform {
         matrix: Matrix4,
+        view_matrix: Option<Matrix4>,
         light: Option<Vec3>,
         texture: Option<TextureType>,
         perspective: Option<Perspective>,
@@ -239,6 +259,7 @@ pub mod mesh {
         pub fn new(matrix: Matrix4) -> Self {
             Self {
                 matrix,
+                view_matrix: None,
                 light: None,
                 texture: None,
                 perspective: None,
@@ -255,8 +276,14 @@ pub mod mesh {
             self
         }
 
-        pub fn perspective(&mut self, perspective: Perspective) {
+        pub fn perspective(mut self, perspective: Perspective) -> Self {
             self.perspective = Some(perspective.clone());
+            self
+        }
+
+        pub fn view_matrix(&mut self, matrix: Matrix4) -> &mut Self {
+            self.view_matrix = Some(matrix);
+            self
         }
 
         pub fn matrix(&mut self, matrix: Matrix4) {
@@ -265,6 +292,10 @@ pub mod mesh {
 
         pub fn transform(&mut self, transform: &Transform) {
             self.matrix = transform.matrix.clone();
+        }
+
+        pub fn ref_matrix(&mut self) -> &mut Matrix4 {
+            &mut self.matrix
         }
     }
 
@@ -278,6 +309,10 @@ pub mod mesh {
 
             if let Some(perspective) = self.perspective {
                 f("perspective", UniformValue::Mat4(perspective.inner()));
+            }
+
+            if let Some(view_matrix) = self.view_matrix {
+                f("view", UniformValue::Mat4(view_matrix.inner()));
             }
 
             if let Some(texture) = &self.texture {

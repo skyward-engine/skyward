@@ -10,10 +10,12 @@ use glium::{
     Display, DrawParameters,
 };
 use render_gl::{
-    container::Matrix4,
+    camera::Camera,
+    container::{Matrix4, Vec3},
     draw::{
         internal::{InternalSystem, InternalTransformSystem},
         mesh::{DrawParametersComponent, IndexBufferCreator, Mesh, MeshUniform, Transform},
+        perspective::Perspective,
         Vertex,
     },
     window::{PlatformHandle, Window},
@@ -39,6 +41,7 @@ impl MetaPlatform {
 }
 
 struct TransformSystem;
+struct CameraTurnSystem;
 
 impl System<Display> for TransformSystem {
     fn update(
@@ -47,13 +50,31 @@ impl System<Display> for TransformSystem {
         table: &mut ecs::entity::EntityQueryTable,
         _: &Display,
     ) -> Option<()> {
-        for entity in table.query_single::<Transform>(manager)? {
-            let transform = manager.query_entity::<Transform>(*entity).0?;
-            let matrix = transform.ref_matrix();
+        for entity in table.query_single::<MeshUniform>(manager)? {
+            let uniform = manager.query_entity::<MeshUniform>(*entity).0?;
+            let matrix = uniform.ref_matrix();
 
             matrix.rotate(0.00005, (1.0, 0.0, 0.0));
         }
 
+        None
+    }
+}
+
+impl System<Display> for CameraTurnSystem {
+    fn update(
+        &mut self,
+        manager: &mut ecs::entity::EntityManager,
+        table: &mut ecs::entity::EntityQueryTable,
+        data: &Display,
+    ) -> Option<()> {
+        for entity in table.query_single::<Camera>(manager)? {
+            let camera = manager.query_entity::<Camera>(*entity).0?;
+            let old_pos = camera.ref_position();
+            let old_dir = camera.ref_direction();
+
+            camera.position(Vec3::from([0.00002, -0.000001, 0.00001]) + *old_pos);
+        }
         None
     }
 }
@@ -68,7 +89,17 @@ impl PlatformHandle for MetaPlatform {
             .with_system(InternalSystem)
             .with_system(InternalTransformSystem)
             .with_system(TransformSystem)
+            .with_system(CameraTurnSystem)
             .register::<Transform>();
+
+        {
+            let camera_entity = self.world.entity();
+
+            self.world.with::<Camera>(
+                camera_entity,
+                Camera::new([2.0, -1.0, 1.0], [-2.0, 1.0, 1.0], [0.0, 1.0, 0.0]),
+            );
+        }
 
         // tea pot
         {
@@ -102,18 +133,15 @@ impl PlatformHandle for MetaPlatform {
                         [0.01, 0.0, 0.0, 0.0],
                         [0.0, 0.01, 0.0, 0.0],
                         [0.0, 0.0, 0.01, 0.0],
-                        [0.0, 0.0, 0.0, 1.0f32],
+                        [0.0, 0.0, 2.0, 1.0f32],
                     ]))
-                    .light([-1.0, 0.4, 0.9]),
-                )
-                .with::<Transform>(
-                    entity,
-                    Transform::from([
-                        [0.01, 0.0, 0.0, 0.0],
-                        [0.0, 0.01, 0.0, 0.0],
-                        [0.0, 0.0, 0.01, 0.0],
-                        [0.0, 0.0, 0.0, 1.0f32],
-                    ]),
+                    .light([-1.0, 0.4, 0.9])
+                    .perspective(Perspective::new(
+                        self.display.as_ref().unwrap(),
+                        3.0,
+                        1024.0,
+                        0.1,
+                    )),
                 )
                 .with::<DrawParametersComponent>(
                     entity,
