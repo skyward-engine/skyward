@@ -5,7 +5,7 @@ edition = "2021"
 license = "MIT"
 description = "A fast, extensive game engine written in Rust, utilizing glium."
 repository = "https://github.com/therealnv6/skyward"
-keywords = ["game", "engine", "games", "gameengine", "skyward", "opengl"]
+keywords = ["game", "engine", "games", "skyward", "opengl"]
 crate-type = ["lib"]
 
 [workspace]
