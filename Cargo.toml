@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 description = "A fast, extensive game engine written in Rust, utilizing glium."
+repository = "https://github.com/therealnv6/skyward"
+keywords = ["game", "engine", "games", "gameengine", "game engine", "skyward", "opengl"]
 
 [workspace]
 members = [
