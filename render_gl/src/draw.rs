@@ -231,15 +231,10 @@ pub mod internal {
 }
 
 pub mod mesh {
-    use crate::container::{Matrix4, Vec3};
+    use crate::container::Matrix4;
 
     use ecs_macro::EntityComponent;
-    use glium::{
-        index::PrimitiveType,
-        texture::Texture3d,
-        uniforms::{UniformValue, Uniforms},
-        Display, DrawParameters, IndexBuffer, Texture2d,
-    };
+    use glium::{texture::Texture3d, DrawParameters, Texture2d};
 
     #[derive(EntityComponent)]
     pub struct DrawParametersComponent(pub DrawParameters<'static>);
