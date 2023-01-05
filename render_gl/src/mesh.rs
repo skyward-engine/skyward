@@ -110,7 +110,7 @@ impl Mesh {
     /// # Examples
     ///
     /// ```
-    /// use fox::render::draw::mesh::{Mesh, Vertex};
+    /// use skyward::render::draw::mesh::{Mesh, Vertex};
     /// use glium::{Display, ImageFormat};
     /// use std::fs::File;
     /// use std::io::Read;

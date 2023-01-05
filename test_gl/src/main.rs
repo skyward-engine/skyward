@@ -6,5 +6,5 @@ mod wall;
 
 #[profiling::function]
 fn main() {
-    Window::create("Celestia Engine (teapot demo)", Box::new(TeaPotPlatform::new())).unwrap();
+    Window::create("Skyward Engine (teapot demo)", Box::new(TeaPotPlatform::new())).unwrap();
 }

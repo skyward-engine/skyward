@@ -1,5 +1,5 @@
-// extern crate celestia;
-// use foxengine::render_gl::*;
+// extern crate skyward;
+// use skyward::render_gl::*;
 
 fn main() {
     // let window =

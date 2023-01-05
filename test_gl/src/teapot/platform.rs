@@ -182,7 +182,7 @@ impl PlatformHandle for TeaPotPlatform {
                 .unwrap()
                 .gl_window()
                 .window()
-                .set_title(&format!("Celestia Engine [{:.2}] (teapot demo)", fps));
+                .set_title(&format!("Skyward Engine [{:.2}] (teapot demo)", fps));
 
             self.fps_counter = 0;
             self.fps_counter_time = std::time::Instant::now();
