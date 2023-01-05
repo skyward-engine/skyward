@@ -1,6 +1,22 @@
+[package]
+name = "foxengine"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
 [workspace]
 members = [
-    "render-gl",
-    "ecs-macro",
-    "ecs"
+    "render_gl",
+    "ecs_macro",
+    "test_gl",
+    "ecs",
 ]
+
+[[example]]
+name = "teapot"
+path = "examples/teapot_test.rs"
+
+[package.metadata.example.teapot]
+name = "Teapot Model"
+description = "A mere teapot render."
+hidden = true

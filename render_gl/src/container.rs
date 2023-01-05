@@ -1,33 +1,3 @@
-// macro_rules! declare_vec {
-//     ($name:ident<$amount:expr, $($field:ident),+>) => {
-//         struct $name {
-//             $(
-//                 $field: f32,
-//             )+
-//         }
-
-//         impl $name {
-//             pub fn new($($field: f32,)+) -> Self {
-//                 Self {
-//                     $($field,)+
-//                 }
-//             }
-//         }
-
-//         impl From<[f32; $amount]> for $name {
-//             fn from(value: [f32; $amount]) -> Self {
-//                 Self {
-//                     $(
-//                         $field: value[ $i - 1 ],
-//                     )+
-//                 }
-//             }
-//         }
-//     };
-// }
-
-// declare_vec!(Vec2<2, x, y>);
-
 use std::ops::{Index, IndexMut};
 
 #[derive(Debug, Clone, Copy)]
@@ -47,6 +17,92 @@ impl Matrix4 {
             [0.0, 0.0, 0.0, 0.0],
         ])
     }
+
+    pub fn translate(&mut self, x: f32, y: f32, z: f32) {
+        let translate_matrix = Matrix4::from([
+            [1.0, 0.0, 0.0, x],
+            [0.0, 1.0, 0.0, y],
+            [0.0, 0.0, 1.0, z],
+            [0.0, 0.0, 0.0, 1.0],
+        ]);
+
+        let multiplied = multiply(translate_matrix, *self);
+
+        self[0] = multiplied[0];
+        self[1] = multiplied[1];
+        self[2] = multiplied[2];
+        self[3] = multiplied[3];
+    }
+
+    pub fn rotate(&mut self, angle: f32, axis: (f32, f32, f32)) {
+        let (x, y, z) = axis;
+        let c = angle.cos();
+        let s = angle.sin();
+        let rotate_matrix = Matrix4::from([
+            [
+                x * x * (1.0 - c) + c,
+                y * x * (1.0 - c) + z * s,
+                z * x * (1.0 - c) - y * s,
+                0.0,
+            ],
+            [
+                x * y * (1.0 - c) - z * s,
+                y * y * (1.0 - c) + c,
+                z * y * (1.0 - c) + x * s,
+                0.0,
+            ],
+            [
+                x * z * (1.0 - c) + y * s,
+                y * z * (1.0 - c) - x * s,
+                z * z * (1.0 - c) + c,
+                0.0,
+            ],
+            [0.0, 0.0, 0.0, 1.0],
+        ]);
+
+        let multiplied = multiply(rotate_matrix, *self);
+
+        self[0] = multiplied[0];
+        self[1] = multiplied[1];
+        self[2] = multiplied[2];
+        self[3] = multiplied[3];
+    }
+
+    pub fn scale(&mut self, x: f32, y: f32, z: f32) {
+        let scale_matrix = Matrix4::from([
+            [x, 0.0, 0.0, 0.0],
+            [0.0, y, 0.0, 0.0],
+            [0.0, 0.0, z, 0.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ]);
+
+        let multiplied = multiply(scale_matrix, *self);
+
+        self[0] = multiplied[0];
+        self[1] = multiplied[1];
+        self[2] = multiplied[2];
+        self[3] = multiplied[3];
+    }
+
+    pub fn inner(&self) -> [[f32; 4]; 4] {
+        let first = self[0];
+        let second = self[1];
+        let third = self[2];
+        let fourth = self[3];
+
+        [first.inner(), second.inner(), third.inner(), fourth.inner()]
+    }
+}
+
+pub fn multiply(a: Matrix4, b: Matrix4) -> Matrix4 {
+    let mut result = Matrix4::new();
+    for i in 0..4 {
+        for j in 0..4 {
+            result[i][j] =
+                a[i][0] * b[0][j] + a[i][1] * b[1][j] + a[i][2] * b[2][j] + a[i][3] * b[3][j];
+        }
+    }
+    result
 }
 
 unsafe impl Send for Matrix4 {}
@@ -104,6 +160,10 @@ impl Vec4 {
     pub fn new(x: f32, y: f32, z: f32, w: f32) -> Self {
         Self { x, y, z, w }
     }
+
+    pub fn inner(&self) -> [f32; 4] {
+        [self[0], self[1], self[2], self[3]]
+    }
 }
 
 impl From<[f32; 4]> for Vec4 {
@@ -156,6 +216,10 @@ unsafe impl Sync for Vec3 {}
 impl Vec3 {
     pub fn new(x: f32, y: f32, z: f32) -> Self {
         Self { x, y, z }
+    }
+
+    pub fn inner(&self) -> [f32; 3] {
+        [self[0], self[1], self[2]]
     }
 }
 

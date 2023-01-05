@@ -21,13 +21,11 @@ pub fn derive_ecs_component(item: TokenStream) -> TokenStream {
             None => quote!(),
         };
 
-        panic!(
-            "{}",
-            quote! {
-                impl #generics ecs::component::Component for #name #generics
-                #where_clause
-                {}
-            }
-        )
+        quote! {
+            impl #generics ecs::component::Component for #name #generics
+            #where_clause
+            {}
+        }
+        .into()
     }
 }

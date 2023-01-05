@@ -23,6 +23,8 @@ mod teapot;
 struct MetaPlatform {
     display: Option<Display>,
     world: World<Display>,
+    fps_counter: u64,
+    fps_counter_time: Instant,
 }
 
 impl MetaPlatform {
@@ -30,6 +32,8 @@ impl MetaPlatform {
         Self {
             display: None,
             world: World::new(),
+            fps_counter: 0,
+            fps_counter_time: Instant::now(),
         }
     }
 }
@@ -45,7 +49,9 @@ impl System<Display> for TransformSystem {
     ) -> Option<()> {
         for entity in table.query_single::<Transform>(manager)? {
             let transform = manager.query_entity::<Transform>(*entity).0?;
-            transform.rotate(0.00005, (1.0, 0.0, 0.0));
+            let matrix = transform.ref_matrix();
+
+            matrix.rotate(0.00005, (1.0, 0.0, 0.0));
         }
 
         None
@@ -117,6 +123,7 @@ impl PlatformHandle for MetaPlatform {
                             write: true,
                             ..Default::default()
                         },
+                        smooth: Some(glium::Smooth::Nicest),
                         ..Default::default()
                     }),
                 );
@@ -129,6 +136,21 @@ impl PlatformHandle for MetaPlatform {
         _: &EventLoopWindowTarget<()>,
         flow: &mut ControlFlow,
     ) {
+        self.fps_counter += 1;
+
+        if self.fps_counter_time.elapsed().as_secs() >= 1 {
+            let fps = self.fps_counter as f64 / self.fps_counter_time.elapsed().as_secs_f64();
+            self.display
+                .as_ref()
+                .unwrap()
+                .gl_window()
+                .window()
+                .set_title(&format!("My Window - FPS: {:.2}", fps));
+
+            self.fps_counter = 0;
+            self.fps_counter_time = std::time::Instant::now();
+        }
+
         if let Event::WindowEvent { event, .. } = event {
             match event {
                 WindowEvent::CloseRequested => *flow = ControlFlow::Exit,

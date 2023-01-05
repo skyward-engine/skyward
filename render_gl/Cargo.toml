@@ -1,13 +1,12 @@
 [package]
-name = "ecs-macro"
+name = "render_gl"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[lib]
-proc-macro = true
-
 [dependencies]
-syn = "1.0"
-quote = "1.0"
+glium = "0.32.1"
+image = "*"
+ecs = { path = "../ecs" }
+ecs_macro = { path = "../ecs_macro" }

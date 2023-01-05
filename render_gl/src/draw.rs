@@ -37,7 +37,7 @@ where
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct Vertex {
     pub position: [f32; 3],
     pub tex_pos: [f32; 2],
@@ -59,7 +59,7 @@ impl Vertex {
 
         for i in 0..vertices.len() {
             let position = vertices[i];
-            let normal = normals[1];
+            let normal = normals[i];
 
             let vertex = Vertex {
                 position: [position.0, position.1, position.2],
@@ -119,11 +119,12 @@ impl ToBuffer for Vertex {
 
 pub mod internal {
     use ecs::system::System;
-    use glium::{uniform, uniforms::Uniforms, Display, Frame, Surface};
+    use glium::{uniforms::EmptyUniforms, Display, Surface};
 
-    use super::mesh::{Mesh, TextureType, Transform};
+    use super::mesh::{DrawParametersComponent, Mesh, MeshUniform, Transform};
 
     pub struct InternalSystem;
+    pub struct InternalTransformSystem;
 
     impl System<Display> for InternalSystem {
         /// Renders the mesh components of all entities that have both a `Mesh` and a `Transform` component.
@@ -148,67 +149,61 @@ pub mod internal {
             for entity in table.query_single::<Mesh>(manager)? {
                 let mut target = display.draw();
 
-                let entries = manager.query_entity_two::<Mesh, Transform>(*entity);
-                let (mesh, transform) = (entries.0?, entries.1);
+                let entries = manager
+                    .query_entity_three::<Mesh, MeshUniform, DrawParametersComponent>(*entity);
+                let (mesh, uniform, draw_parameters) = (entries.0?, entries.1, entries.2);
 
-                let mut matrix: [[f32; 4]; 4] = [
-                    [1.0, 0.0, 0.0, 0.0],
-                    [0.0, 1.0, 0.0, 0.0],
-                    [0.0, 0.0, 1.0, 0.0],
-                    [0.0, 0.0, 0.0, 1.0],
-                ];
+                let draw_parameters = match draw_parameters {
+                    Some(value) => value.0.clone(),
+                    None => Default::default(),
+                };
 
-                if let Some(transform) = transform {
-                    matrix = transform.inner();
-                }
+                target.clear_color_and_depth((0.0, 0.0, 1.0, 1.0), 1.0);
 
-                target.clear_color(0.0, 1.0, 0.0, 1.0);
-
-                fn draw<T>(target: &mut Frame, mesh: &Mesh, uniform: &T)
-                where
-                    T: Uniforms,
-                {
-                    target
-                        .draw(
-                            &mesh.vertex_buffer,
-                            mesh.index_buffer.clone(),
-                            &mesh.program,
-                            uniform,
-                            &Default::default(),
-                        )
-                        .unwrap();
-                }
-
-                match &mesh.texture {
-                    Some(texture) => {
-                        match texture {
-                            TextureType::Texture2d(texture) => {
-                                let uniform = uniform! {
-                                    matrix: matrix,
-                                    tex: texture,
-                                };
-
-                                draw(&mut target, &mesh, &uniform);
-                            }
-                            TextureType::Texture3d(texture) => {
-                                let uniform = uniform! {
-                                    matrix: matrix,
-                                    tex: texture,
-                                };
-
-                                draw(&mut target, &mesh, &uniform);
-                            }
-                        };
+                match uniform {
+                    Some(uniform) => {
+                        target
+                            .draw(
+                                &mesh.vertex_buffer,
+                                mesh.index_buffer.clone(),
+                                &mesh.program,
+                                uniform,
+                                &draw_parameters,
+                            )
+                            .unwrap();
                     }
                     None => {
-                        let uniform = uniform! {
-                            matrix: matrix,
-                        };
-                        draw(&mut target, &mesh, &uniform);
+                        target
+                            .draw(
+                                &mesh.vertex_buffer,
+                                mesh.index_buffer.clone(),
+                                &mesh.program,
+                                &EmptyUniforms,
+                                &draw_parameters,
+                            )
+                            .unwrap();
                     }
                 }
 
                 target.finish().unwrap();
+            }
+
+            None
+        }
+    }
+
+    impl System<Display> for InternalTransformSystem {
+        fn update(
+            &mut self,
+            manager: &mut ecs::entity::EntityManager,
+            table: &mut ecs::entity::EntityQueryTable,
+            _: &Display,
+        ) -> Option<()> {
+            for entity in table.query::<(Transform, MeshUniform)>(manager)? {
+                let entry = manager.query_entity_two::<Transform, MeshUniform>(entity);
+                let (transform, mesh) = (entry.0?, entry.1?);
+
+                mesh.transform(transform);
             }
 
             None
@@ -219,17 +214,89 @@ pub mod internal {
 pub mod mesh {
     use std::io::Cursor;
 
-    use crate::container::Matrix4;
+    use crate::container::{Matrix4, Vec3};
 
-    use super::{ToBuffer, Vertex};
+    use super::{perspective::Perspective, ToBuffer, Vertex};
     use ecs_macro::EntityComponent;
     use glium::{
         index::{IndicesSource, PrimitiveType},
         texture::{RawImage2d, Texture3d},
-        Display, IndexBuffer, Program, ProgramCreationError, Texture2d, VertexBuffer,
+        uniforms::{UniformValue, Uniforms},
+        Display, DrawParameters, IndexBuffer, Program, ProgramCreationError, Texture2d,
+        VertexBuffer,
     };
     use image::ImageFormat;
 
+    #[derive(EntityComponent, Debug)]
+    pub struct MeshUniform {
+        matrix: Matrix4,
+        light: Option<Vec3>,
+        texture: Option<TextureType>,
+        perspective: Option<Perspective>,
+    }
+
+    impl MeshUniform {
+        pub fn new(matrix: Matrix4) -> Self {
+            Self {
+                matrix,
+                light: None,
+                texture: None,
+                perspective: None,
+            }
+        }
+
+        pub fn light(mut self, light: impl Into<Vec3>) -> Self {
+            self.light = Some(light.into());
+            self
+        }
+
+        pub fn texture(mut self, texture: TextureType) -> Self {
+            self.texture = Some(texture);
+            self
+        }
+
+        pub fn perspective(&mut self, perspective: Perspective) {
+            self.perspective = Some(perspective.clone());
+        }
+
+        pub fn matrix(&mut self, matrix: Matrix4) {
+            self.matrix = matrix;
+        }
+
+        pub fn transform(&mut self, transform: &Transform) {
+            self.matrix = transform.matrix.clone();
+        }
+    }
+
+    impl Uniforms for MeshUniform {
+        fn visit_values<'b, F: FnMut(&str, glium::uniforms::UniformValue<'b>)>(&'b self, mut f: F) {
+            f("matrix", UniformValue::Mat4(self.matrix.inner()));
+
+            if let Some(light) = self.light {
+                f("u_light", UniformValue::Vec3(light.inner()));
+            }
+
+            if let Some(perspective) = self.perspective {
+                f("perspective", UniformValue::Mat4(perspective.inner()));
+            }
+
+            if let Some(texture) = &self.texture {
+                match texture {
+                    TextureType::Texture2d(texture) => {
+                        f("tex", UniformValue::Texture2d(&texture, None))
+                    }
+                    TextureType::Texture3d(texture) => {
+                        f("tex", UniformValue::Texture3d(&texture, None))
+                    }
+                };
+            }
+        }
+    }
+
+    #[derive(EntityComponent)]
+    pub struct DrawParametersComponent(pub DrawParameters<'static>);
+
+    #[derive(Debug)]
     pub enum TextureType {
         Texture2d(Texture2d),
         Texture3d(Texture3d),
@@ -448,80 +515,104 @@ pub mod mesh {
             }
         }
 
-        pub fn translate(&mut self, x: f32, y: f32, z: f32) {
-            let translate_matrix = Matrix4::from([
-                [1.0, 0.0, 0.0, x],
-                [0.0, 1.0, 0.0, y],
-                [0.0, 0.0, 1.0, z],
-                [0.0, 0.0, 0.0, 1.0],
-            ]);
-
-            self.matrix = multiply(translate_matrix, self.matrix);
-        }
-
-        pub fn rotate(&mut self, angle: f32, axis: (f32, f32, f32)) {
-            let (x, y, z) = axis;
-            let c = angle.cos();
-            let s = angle.sin();
-            let rotate_matrix = Matrix4::from([
-                [
-                    x * x * (1.0 - c) + c,
-                    y * x * (1.0 - c) + z * s,
-                    z * x * (1.0 - c) - y * s,
-                    0.0,
-                ],
-                [
-                    x * y * (1.0 - c) - z * s,
-                    y * y * (1.0 - c) + c,
-                    z * y * (1.0 - c) + x * s,
-                    0.0,
-                ],
-                [
-                    x * z * (1.0 - c) + y * s,
-                    y * z * (1.0 - c) - x * s,
-                    z * z * (1.0 - c) + c,
-                    0.0,
-                ],
-                [0.0, 0.0, 0.0, 1.0],
-            ]);
-
-            self.matrix = multiply(rotate_matrix, self.matrix);
-        }
-
-        pub fn scale(&mut self, x: f32, y: f32, z: f32) {
-            let scale_matrix = Matrix4::from([
-                [x, 0.0, 0.0, 0.0],
-                [0.0, y, 0.0, 0.0],
-                [0.0, 0.0, z, 0.0],
-                [0.0, 0.0, 0.0, 1.0],
-            ]);
-
-            self.matrix = multiply(scale_matrix, self.matrix);
+        pub fn ref_matrix(&mut self) -> &mut Matrix4 {
+            &mut self.matrix
         }
 
         pub fn inner(&self) -> [[f32; 4]; 4] {
-            let first = self.matrix[0];
-            let second = self.matrix[1];
-            let third = self.matrix[2];
-            let fourth = self.matrix[3];
-
-            [
-                [first[0], first[1], first[2], first[3]],
-                [second[0], second[1], second[2], second[3]],
-                [third[0], third[1], third[2], third[3]],
-                [fourth[0], fourth[1], fourth[2], fourth[3]],
-            ]
+            self.matrix.inner()
         }
     }
+}
 
-    pub fn multiply(a: Matrix4, b: Matrix4) -> Matrix4 {
-        let mut result = Matrix4::new();
-        for i in 0..4 {
-            for j in 0..4 {
-                result[i][j] =
-                    a[i][0] * b[0][j] + a[i][1] * b[1][j] + a[i][2] * b[2][j] + a[i][3] * b[3][j];
+pub mod perspective {
+    use std::f32::consts::PI;
+
+    use ecs_macro::EntityComponent;
+    use glium::Display;
+
+    use crate::container::Matrix4;
+
+    #[derive(EntityComponent, Debug, Clone, Copy)]
+    pub struct Perspective {
+        width: f32,
+        height: f32,
+        fov_div: f32,
+        zfar: f32,
+        znear: f32,
+    }
+
+    unsafe impl Send for Perspective {}
+    unsafe impl Sync for Perspective {}
+
+    impl Perspective {
+        pub fn new(display: &Display, fov_div: f32, zfar: f32, znear: f32) -> Self {
+            let entries = display.get_framebuffer_dimensions();
+            let (width, height) = (entries.0 as f32, entries.1 as f32);
+
+            Self {
+                width,
+                height,
+                fov_div,
+                zfar,
+                znear,
             }
         }
-        result
+
+        pub fn width(mut self, width: f32) -> Self {
+            {
+                self.width = width;
+            }
+            self
+        }
+
+        pub fn height(mut self, height: f32) -> Self {
+            {
+                self.height = height;
+            }
+            self
+        }
+
+        pub fn fov_div(mut self, fov_div: f32) -> Self {
+            {
+                self.fov_div = fov_div;
+            }
+            self
+        }
+
+        pub fn zfar(mut self, zfar: f32) -> Self {
+            {
+                self.zfar = zfar;
+            }
+            self
+        }
+
+        pub fn znear(mut self, znear: f32) -> Self {
+            {
+                self.znear = znear;
+            }
+            self
+        }
+
+        pub fn matrix(&self) -> Matrix4 {
+            let fov = PI / self.fov_div;
+            let f = 1.0 / (fov / 2.0).tan();
+
+            let aspect_ratio = self.height / self.width;
+
+            let zfar = self.zfar;
+            let znear = self.znear;
+
+            Matrix4::from([
+                [f * aspect_ratio, 0.0, 0.0, 0.0],
+                [0.0, f, 0.0, 0.0],
+                [0.0, 0.0, (zfar + znear) / (zfar - znear), 1.0],
+                [0.0, 0.0, -(2.0 * zfar * znear) / (zfar - znear), 0.0],
+            ])
+        }
+
+        pub fn inner(&self) -> [[f32; 4]; 4] {
+            self.matrix().inner()
+        }
     }
 }

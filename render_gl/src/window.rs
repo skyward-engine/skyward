@@ -22,7 +22,7 @@ impl Window {
     ) -> Result<(), DisplayCreationError> {
         let event_loop = EventLoopBuilder::new().with_any_thread(true).build();
         let window_builder = WindowBuilder::new().with_title(title);
-        let context_builder = ContextBuilder::new();
+        let context_builder = ContextBuilder::new().with_depth_buffer(24);
 
         let display = Display::new(window_builder, context_builder, &event_loop)?;
 
