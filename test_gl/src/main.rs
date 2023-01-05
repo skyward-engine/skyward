@@ -10,14 +10,16 @@ use glium::{
     Display, DrawParameters,
 };
 use render_gl::{
+    buffer::IndexBufferCreator,
     camera::Camera,
     container::{Matrix4, Vec3},
     draw::{
         internal::{InternalSystem, InternalTransformSystem},
-        mesh::{DrawParametersComponent, IndexBufferCreator, Mesh, MeshUniform, Transform},
-        perspective::Perspective,
+        mesh::{DrawParametersComponent, Transform},
         Vertex,
     },
+    mesh::Mesh,
+    uniform::{perspective::Perspective, MeshUniform},
     window::{PlatformHandle, Window},
 };
 mod teapot;
@@ -66,12 +68,12 @@ impl System<Display> for CameraTurnSystem {
         &mut self,
         manager: &mut ecs::entity::EntityManager,
         table: &mut ecs::entity::EntityQueryTable,
-        data: &Display,
+        _: &Display,
     ) -> Option<()> {
         for entity in table.query_single::<Camera>(manager)? {
             let camera = manager.query_entity::<Camera>(*entity).0?;
             let old_pos = camera.ref_position();
-            let old_dir = camera.ref_direction();
+            // let old_dir = camera.ref_direction();
 
             camera.position(Vec3::from([0.00002, -0.000001, 0.00001]) + *old_pos);
         }

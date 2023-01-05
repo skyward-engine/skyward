@@ -10,7 +10,7 @@ use glium::{
     Display,
 };
 
-use crate::draw::mesh::IndexBufferCreator;
+use crate::buffer::IndexBufferCreator;
 
 pub struct Window {}
 
