@@ -48,6 +48,21 @@ impl Camera {
         &self.up
     }
 
+    pub fn add_position(&mut self, position: impl Into<Vec3>) -> &mut Self {
+        self.position = self.position + position.into();
+        self
+    }
+
+    pub fn add_direction(&mut self, direction: impl Into<Vec3>) -> &mut Self {
+        self.direction = self.direction + direction.into();
+        self
+    }
+
+    pub fn add_up(&mut self, up: impl Into<Vec3>) -> &mut Self {
+        self.up = self.up + up.into();
+        self
+    }
+
     pub fn view_matrix(&self) -> Matrix4 {
         let f = {
             let len = (self.direction[0] * self.direction[0]
