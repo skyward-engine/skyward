@@ -22,6 +22,9 @@ struct EntityContainer {
     dead_idx: Vec<usize>,
 }
 
+unsafe impl Sync for EntityContainer {}
+unsafe impl Send for EntityContainer {}
+
 impl EntityContainer {
     pub fn new() -> Self {
         Self {
@@ -48,6 +51,12 @@ impl EntityContainer {
 
         self.entities.push(entity);
         (id - 1).try_into().unwrap()
+    }
+
+    pub fn entity_at(&mut self, id: usize) -> usize {
+        let entity = Entity::new(id as u32);
+        self.entities.push(entity);
+        id
     }
 
     pub fn remove(&mut self, entity_id: usize) {
@@ -131,6 +140,9 @@ tuple!(T1, T2, T3, T4);
 tuple!(T1, T2, T3, T4, T5);
 tuple!(T1, T2, T3, T4, T5, T6);
 
+unsafe impl Sync for EntityManager {}
+unsafe impl Send for EntityManager {}
+
 impl EntityManager {
     pub fn new() -> Self {
         Self {
@@ -181,6 +193,10 @@ impl EntityManager {
 
     pub fn entity(&mut self) -> usize {
         self.container.entity()
+    }
+
+    pub fn entity_at(&mut self, id: usize) -> usize {
+        self.container.entity_at(id)
     }
 
     pub fn remove_entity(&mut self, entity_id: usize) {
