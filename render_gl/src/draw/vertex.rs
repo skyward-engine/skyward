@@ -42,6 +42,36 @@ impl Vertex {
 
         Self::to_buffer(display, &vertex_vec).unwrap()
     }
+
+    pub fn from_vertices_with_tex(
+        display: &Display,
+        vertices: &[(f32, f32, f32)],
+        normals: &[(f32, f32, f32)],
+        tex_pos: &[(f32, f32)],
+    ) -> VertexBuffer<Vertex> {
+        if (vertices.len() != normals.len()) || (vertices.len() != tex_pos.len()) {
+            // todo: proper error handling
+            panic!("Vertices, texture position and normals should be the same length!");
+        };
+
+        let mut vertex_vec = Vec::<Vertex>::new();
+
+        for i in 0..vertices.len() {
+            let texture_position = tex_pos[i];
+            let position = vertices[i];
+            let normal = normals[i];
+
+            let vertex = Vertex {
+                position: [position.0, position.1, position.2],
+                normal: [normal.0, normal.1, normal.2],
+                tex_pos: [texture_position.0, texture_position.1],
+            };
+
+            vertex_vec.push(vertex);
+        }
+
+        Self::to_buffer(display, &vertex_vec).unwrap()
+    }
 }
 
 implement_vertex!(Vertex, position, tex_pos, normal);

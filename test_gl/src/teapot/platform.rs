@@ -131,17 +131,17 @@ impl PlatformHandle for TeaPotPlatform {
                                 PrimitiveType::TrianglesList,
                             )
                             .get_index_buffer_u16(),
-                        include_str!("../../../shaders/tea_vertex_shader.vert"),
-                        include_str!("../../../shaders/tea_fragment_shader.fs"),
+                        include_str!("../../shaders/tea_vertex_shader.vert"),
+                        include_str!("../../shaders/tea_fragment_shader.fs"),
                     )
                     .unwrap(),
                 )
                 .with::<MeshUniform>(
                     entity,
                     MeshUniform::new(Matrix4::from([
-                        [0.01, 0.0, 0.0, 0.0],
-                        [0.0, 0.01, 0.0, 0.0],
-                        [0.0, 0.0, 0.01, 0.0],
+                        [0.1, 0.0, 0.0, 0.0],
+                        [0.0, 0.1, 0.0, 0.0],
+                        [0.0, 0.0, 0.1, 0.0],
                         [0.0, 0.0, 2.0, 1.0f32],
                     ]))
                     .light([-1.0, 0.4, 0.9])

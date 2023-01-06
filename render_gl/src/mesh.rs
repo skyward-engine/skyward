@@ -1,12 +1,8 @@
-use std::io::Cursor;
-
 use ecs_macro::EntityComponent;
 use glium::{
-    index::IndicesSource,
-    texture::{RawImage2d, Texture3d},
-    Display, Program, ProgramCreationError, Texture2d, VertexBuffer,
+    index::IndicesSource, texture::Texture3d, Display, Program, ProgramCreationError, Texture2d,
+    VertexBuffer,
 };
-use image::ImageFormat;
 
 use crate::draw::vertex::{ToBuffer, Vertex};
 
@@ -36,10 +32,6 @@ pub struct Mesh {
     ///
     /// The program consists of a vertex shader and a fragment shader. The vertex shader is responsible for transforming the vertices of the mesh, and the fragment shader is responsible for applying colors or textures to the surface of the mesh.
     pub program: Program,
-    /// An optional texture for the mesh.
-    ///
-    /// The texture can be applied to the surface of the mesh, adding an additional level of detail. If no texture is provided, the mesh will be rendered with a solid color.
-    pub texture: Option<TextureType>,
 }
 
 impl Mesh {
@@ -69,7 +61,6 @@ impl Mesh {
         let constructed = Self {
             vertex_buffer: buffer,
             index_buffer,
-            texture: None,
             program,
         };
 
@@ -88,48 +79,9 @@ impl Mesh {
         let constructed = Self {
             vertex_buffer: vertices,
             index_buffer: index_buffer.into(),
-            texture: None,
             program,
         };
 
         Ok(constructed)
-    }
-
-    /// Creates a new `Mesh` instance with an image texture.
-    ///
-    /// # Arguments
-    ///
-    /// * `format` - The image format of the texture.
-    /// * `display` - The display to use for creating the texture.
-    /// * `bytes` - The bytes of the image data.
-    ///
-    /// # Returns
-    ///
-    /// A new `Mesh` instance with an image texture.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use skyward::render::draw::mesh::{Mesh, Vertex};
-    /// use glium::{Display, ImageFormat};
-    /// use std::fs::File;
-    /// use std::io::Read;
-    ///
-    /// let mesh = Mesh::new(display, &[], &[], "", "")
-    ///     .unwrap()
-    ///     .with_img_2d_texture(ImageFormat::Png, display, include_bytes!("picture.png"));
-    /// ```
-    pub fn with_img_2d_texture(
-        mut self,
-        format: ImageFormat,
-        display: &Display,
-        bytes: &[u8],
-    ) -> Self {
-        let image = image::load(Cursor::new(bytes), format).unwrap().to_rgba8();
-        let dimensions = image.dimensions();
-        let image = RawImage2d::from_raw_rgba_reversed(&image.into_raw(), dimensions);
-        let texture = Texture2d::new(display, image).unwrap();
-        self.texture = Some(TextureType::Texture2d(texture));
-        self
     }
 }
