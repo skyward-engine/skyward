@@ -12,8 +12,11 @@ image = "*"
 ecs = { path = "../ecs" }
 ecs_macro = { path = "../ecs_macro" }
 render_gl = { path = "../render_gl" }
+rand = "0.8.5"
 
 [features]
+wall = []
+teapot = []
 profile-with-puffin = ["profiling/profile-with-puffin"]
 profile-with-optick = ["profiling/profile-with-optick"]
 profile-with-superluminal = ["profiling/profile-with-superluminal"]

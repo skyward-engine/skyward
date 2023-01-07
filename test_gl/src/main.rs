@@ -13,11 +13,12 @@ use rotate::WallRotateSystem;
 
 mod platform;
 mod rotate;
+mod teapot;
 mod wall;
 
-pub const WALL_INDEX: usize = 0;
 pub const CAMERA_INDEX: usize = 1;
 pub const TIME_DELTA_INDEX: usize = 2;
+pub const WALL_MESH_ENTITY: usize = 3;
 
 #[profiling::function]
 fn main() -> Result<(), DisplayCreationError> {
