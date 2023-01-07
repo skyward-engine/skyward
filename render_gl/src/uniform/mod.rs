@@ -20,25 +20,40 @@ pub mod perspective;
 
 #[derive(EntityComponent, Debug)]
 pub struct MeshUniform {
-    matrix: Matrix4,
+    matrix: Option<Matrix4>,
     view_matrix: Option<Matrix4>,
     light: Option<Vec3>,
     perspective: Option<Perspective>,
     texture: Option<TextureType>,
     diffuse_texture: Option<TextureType>,
     normal_texture: Option<TextureType>,
+    world_location: Option<Vec3>,
 }
 
 impl MeshUniform {
     pub fn new(matrix: Matrix4) -> Self {
         Self {
-            matrix,
+            matrix: Some(matrix),
             view_matrix: None,
             light: None,
             texture: None,
             perspective: None,
             diffuse_texture: None,
             normal_texture: None,
+            world_location: None,
+        }
+    }
+
+    pub fn empty() -> Self {
+        Self {
+            matrix: None,
+            view_matrix: None,
+            light: None,
+            texture: None,
+            perspective: None,
+            diffuse_texture: None,
+            normal_texture: None,
+            world_location: None,
         }
     }
 
@@ -67,21 +82,26 @@ impl MeshUniform {
         self
     }
 
-    pub fn view_matrix(&mut self, matrix: Matrix4) -> &mut Self {
-        self.view_matrix = Some(matrix);
+    pub fn location(mut self, location: impl Into<Vec3>) -> Self {
+        self.world_location = Some(location.into());
         self
     }
 
-    pub fn matrix(&mut self, matrix: Matrix4) {
-        self.matrix = matrix;
+    pub fn view_matrix(&mut self, matrix: impl Into<Matrix4>) -> &mut Self {
+        self.view_matrix = Some(matrix.into());
+        self
+    }
+
+    pub fn matrix(&mut self, matrix: impl Into<Matrix4>) {
+        self.matrix = Some(matrix.into());
     }
 
     pub fn transform(&mut self, transform: &Transform) {
-        self.matrix = transform.matrix.clone();
+        self.matrix = Some(transform.matrix.clone());
     }
 
-    pub fn ref_matrix(&mut self) -> &mut Matrix4 {
-        &mut self.matrix
+    pub fn ref_matrix(&mut self) -> Option<&mut Matrix4> {
+        self.matrix.as_mut()
     }
 
     /// Creates a new `Mesh` instance with an image texture.
@@ -201,7 +221,9 @@ impl MeshUniform {
 
 impl Uniforms for MeshUniform {
     fn visit_values<'b, F: FnMut(&str, glium::uniforms::UniformValue<'b>)>(&'b self, mut f: F) {
-        f("matrix", UniformValue::Mat4(self.matrix.inner()));
+        if let Some(matrix) = self.matrix {
+            f("matrix", UniformValue::Mat4(matrix.inner()));
+        }
 
         if let Some(light) = self.light {
             f("u_light", UniformValue::Vec3(light.inner()));
@@ -213,6 +235,10 @@ impl Uniforms for MeshUniform {
 
         if let Some(view_matrix) = self.view_matrix {
             f("view", UniformValue::Mat4(view_matrix.inner()));
+        }
+
+        if let Some(location) = self.world_location {
+            f("world_location", UniformValue::Vec3(location.inner()));
         }
 
         for entry in [

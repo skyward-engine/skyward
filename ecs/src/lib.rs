@@ -9,7 +9,7 @@ mod test {
         component::Component,
         entity::{EntityManager, EntityQueryTable},
         system::System,
-        world::{SystemType, World},
+        world::{Leak, SystemType, World},
     };
 
     #[test]

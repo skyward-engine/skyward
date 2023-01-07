@@ -56,6 +56,11 @@ impl EntityContainer {
     pub fn entity_at(&mut self, id: usize) -> usize {
         let entity = Entity::new(id as u32);
         self.entities.push(entity);
+
+        if self.dead_idx.contains(&id) {
+            self.dead_idx.swap_remove(id);
+        }
+
         id
     }
 
@@ -284,6 +289,13 @@ impl EntityQueryTable {
         }
     }
 
+    pub fn query_first_single<T>(&mut self, manager: &mut EntityManager) -> Option<&usize>
+    where
+        T: Component,
+    {
+        self.query_single::<T>(manager)?.first()
+    }
+
     pub fn query_single<T>(&mut self, manager: &mut EntityManager) -> Option<&Vec<usize>>
     where
         T: Component,
@@ -304,6 +316,13 @@ impl EntityQueryTable {
         }
 
         self.query_cache.get(&type_id)
+    }
+
+    pub fn query_first<T>(&mut self, manager: &mut EntityManager) -> Option<usize>
+    where
+        T: Tuple,
+    {
+        self.query::<T>(manager)?.first().copied()
     }
 
     pub fn query<T>(&mut self, manager: &mut EntityManager) -> Option<Vec<usize>>

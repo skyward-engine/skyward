@@ -88,10 +88,12 @@ where
 }
 
 pub trait PlatformHandle<T> {
-    // fn initialize_display(&mut self, display: Display);
-    // fn initialize_cache(&mut self, buffer_creator: &'static mut IndexBufferCreator);
-
-    fn init_world(&mut self, render: World<T>, display: &Display, buffer: &mut IndexBufferCreator);
+    fn init_world(
+        &mut self,
+        render: World<T>,
+        display: &Display,
+        buffer: &'static mut IndexBufferCreator,
+    );
 
     fn handle_event_loop<'a>(
         &mut self,
@@ -100,10 +102,4 @@ pub trait PlatformHandle<T> {
         target: &EventLoopWindowTarget<()>,
         control_flow: &mut ControlFlow,
     );
-    // fn handle_main_loop<'a>(
-    //     &mut self,
-    //     event: Event<'a, ()>,
-    //     target: &EventLoopWindowTarget<()>,
-    //     flow: &mut ControlFlow,
-    // );
 }

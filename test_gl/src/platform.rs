@@ -14,7 +14,7 @@ use glium::{
 use image::ImageFormat;
 use render_gl::{
     buffer::IndexBufferCreator,
-    camera::Camera,
+    camera::{Camera, InputEvent},
     container::Matrix4,
     draw::{
         delta::TimeDelta, instanced::Instanced, transform::DrawParametersComponent, vertex::Vertex,
@@ -112,7 +112,7 @@ impl PlatformHandle<Display> for SimplePlatform {
                 .unwrap(),
             );
 
-        let mut walls = (0..20000)
+        let mut walls = (0..1000)
             .map(|_| {
                 let pos: (f32, f32, f32) = (rand::random(), rand::random(), rand::random());
                 let dir: (f32, f32, f32) = (rand::random(), rand::random(), rand::random());
@@ -169,6 +169,9 @@ impl PlatformHandle<Display> for SimplePlatform {
         let table = &mut world.entity_query_table;
         let manager = &mut world.entity_manager;
 
+        let entity = table.query_first_single::<Camera>(manager).unwrap();
+        let camera = manager.query_entity::<Camera>(*entity).0.unwrap();
+
         if let Event::WindowEvent { event, .. } = event {
             match event {
                 WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
@@ -189,32 +192,21 @@ impl PlatformHandle<Display> for SimplePlatform {
                     }
                 }
                 WindowEvent::CursorMoved { position, .. } => {
-                    let entity = table.query_first_single::<Camera>(manager).unwrap();
-                    let camera = manager.query_entity::<Camera>(*entity).0.unwrap();
-
                     let (x, y): (f32, f32) = position.into();
-                    let (last_x, last_y) = camera.get_last_pos();
-
-                    let dx: f32 = x - last_x;
-                    let dy: f32 = y - last_y;
-
-                    let move_x = (dx as f32 * 50.5) * self.last_delta;
-                    let move_y = (dy as f32 * 50.5) * self.last_delta;
-
-                    camera.change_direction(move_x, move_y);
-
-                    let gl_window = display.gl_window();
-                    let window = gl_window.window();
-
-                    let (width, height): (u32, u32) = window.inner_size().into();
-                    let new_pos = PhysicalPosition::new(width as f64 / 2.0, height as f64 / 2.0);
-
-                    camera.update_pos(new_pos.into());
-                    window.set_cursor_position(new_pos).unwrap();
+                    camera.input_event(InputEvent::MouseMovement(x, y));
                 }
                 _ => (),
             };
         }
+
+        let gl_window = display.gl_window();
+        let window = gl_window.window();
+
+        let (width, height): (u32, u32) = window.inner_size().into();
+        let new_pos = PhysicalPosition::new(width as f64 / 2.0, height as f64 / 2.0);
+
+        camera.update_pos(new_pos.into());
+        window.set_cursor_position(new_pos).unwrap();
 
         let entity = table
             .query_single::<TimeDelta>(manager)

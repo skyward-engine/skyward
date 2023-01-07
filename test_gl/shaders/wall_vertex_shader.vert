@@ -16,7 +16,7 @@ uniform mat4 perspective;
 void main(){
     mat4 modelview=view*matrix;
     
-    gl_Position=perspective*modelview*vec4(position*.0005+world_position,1.);
+    gl_Position=perspective*modelview*vec4(position*.05+world_position,1.);
     // gl_Position=perspective*modelview*vec4(position,1.);
     
     v_normal=transpose(inverse(mat3(modelview)))*normal;

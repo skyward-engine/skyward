@@ -1,12 +1,70 @@
+use std::f32::consts::PI;
+
+use ecs::system::MultiThreadSystem;
 use ecs_macro::EntityComponent;
 
-use crate::container::{Matrix4, Vec3};
+use crate::{
+    container::{Matrix4, Vec3},
+    draw::delta::TimeDelta,
+};
+
+struct MouseCamera;
+
+impl MultiThreadSystem for MouseCamera {
+    fn update(
+        &mut self,
+        manager: &mut ecs::entity::EntityManager,
+        table: &mut ecs::entity::EntityQueryTable,
+    ) -> Option<()> {
+        let delta = table
+            .query_first_single::<TimeDelta>(manager)
+            .expect("No TimeDelta initialized!");
+        let delta = manager.query_entity::<TimeDelta>(*delta).0?;
+        let time_delta = delta.get_time_delta_sec();
+
+        let camera = table
+            .query_first_single::<Camera>(manager)
+            .expect("No camera initialized!");
+
+        let camera = manager.query_entity::<Camera>(*camera).0?;
+
+        match camera.input_event {
+            InputEvent::MouseMovement(x, y) => {
+                let (last_x, last_y) = camera.get_last_pos();
+
+                let dx: f32 = x - last_x;
+                let dy: f32 = y - last_y;
+
+                let move_x = (dx as f32 * 50.5) * time_delta;
+                let move_y = (dy as f32 * 50.5) * time_delta;
+
+                camera.change_direction(move_x, move_y);
+            }
+            _ => println!("Unhandled event: {:?}", camera.input_event),
+        }
+
+        None
+    }
+}
 
 #[derive(EntityComponent, Debug, Clone)]
 pub struct Camera {
     position: Vec3,
     direction: Vec3,
     up: Vec3,
+    last_pos: (f32, f32),
+    input_event: InputEvent,
+}
+
+#[derive(Debug, Clone)]
+pub enum InputEvent {
+    MouseMovement(f32, f32),
+    MouseButtonPressed,
+    MouseButtonReleased,
+    KeyPressed(u32),
+    KeyReleased(u32),
+    Quit,
+    None,
 }
 
 impl From<[[f32; 3]; 3]> for Camera {
@@ -21,7 +79,13 @@ impl Camera {
             position: position.into(),
             direction: direction.into(),
             up: up.into(),
+            last_pos: (0.0, 0.0),
+            input_event: InputEvent::None,
         }
+    }
+
+    pub fn input_event(&mut self, event: InputEvent) {
+        self.input_event = event;
     }
 
     pub fn position(&mut self, position: impl Into<Vec3>) {
@@ -61,6 +125,30 @@ impl Camera {
     pub fn add_up(&mut self, up: impl Into<Vec3>) -> &mut Self {
         self.up = self.up + up.into();
         self
+    }
+
+    pub fn get_last_pos(&self) -> (f32, f32) {
+        self.last_pos
+    }
+
+    pub fn update_pos(&mut self, pos: (f32, f32)) {
+        self.last_pos = pos;
+    }
+
+    pub fn change_direction(&mut self, yaw: f32, pitch: f32) {
+        let yaw = yaw * PI / 180.0;
+        let pitch = pitch * PI / 180.0;
+        let x = self.direction[0] * pitch.cos() - self.direction[1] * pitch.sin();
+        let y = self.direction[0] * pitch.sin() + self.direction[1] * pitch.cos();
+        let z = self.direction[2];
+
+        self.direction = Vec3::new(x, y, z);
+
+        let x = self.direction[0] * yaw.cos() + self.direction[2] * yaw.sin();
+        let y = self.direction[1];
+        let z = -self.direction[0] * yaw.sin() + self.direction[2] * yaw.cos();
+
+        self.direction = Vec3::new(x, y, z);
     }
 
     pub fn view_matrix(&self) -> Matrix4 {

@@ -1,12 +1,13 @@
 use std::{
-    marker::PhantomData,
+    borrow::BorrowMut,
     sync::{Arc, Mutex},
+    thread,
 };
 
 use crate::{
     component::Component,
     entity::{EntityManager, EntityQueryTable},
-    system::System,
+    system::{MultiThreadSystem, System},
 };
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
@@ -18,6 +19,8 @@ pub enum SystemType {
 pub struct SystemContainer<T> {
     loop_systems: Vec<Arc<Mutex<dyn System<T>>>>,
     init_systems: Vec<Arc<Mutex<dyn System<T>>>>,
+    threaded_loop_systems: Mutex<Vec<Arc<Mutex<dyn MultiThreadSystem + Send + Sync>>>>,
+    threaded_init_systems: Mutex<Vec<Arc<Mutex<dyn MultiThreadSystem + Send + Sync>>>>,
 }
 
 pub struct World<F> {
@@ -25,6 +28,9 @@ pub struct World<F> {
     pub entity_query_table: EntityQueryTable,
     pub system_container: SystemContainer<F>,
 }
+
+unsafe impl<T> Send for World<T> {}
+unsafe impl<T> Sync for World<T> {}
 
 impl<F> World<F> {
     pub fn new() -> Self {
@@ -34,8 +40,14 @@ impl<F> World<F> {
             system_container: SystemContainer {
                 loop_systems: vec![],
                 init_systems: vec![],
+                threaded_init_systems: Mutex::new(vec![]),
+                threaded_loop_systems: Mutex::new(vec![]),
             },
         }
+    }
+
+    pub fn boxed(self) -> Box<Self> {
+        Box::new(self)
     }
 
     pub fn entity(&mut self) -> usize {
@@ -87,6 +99,24 @@ impl<F> World<F> {
         self
     }
 
+    pub fn with_threaded_system<T>(&mut self, system_type: SystemType, system: T) -> &mut Self
+    where
+        T: MultiThreadSystem + Send + Sync + 'static,
+    {
+        let reference_counted = Arc::new(Mutex::new(system));
+        let systems = match system_type {
+            SystemType::Init => &mut self.system_container.threaded_loop_systems,
+            SystemType::Loop => &mut self.system_container.threaded_init_systems,
+        };
+
+        systems
+            .lock()
+            .expect("Unable to lock systems! Did you push outside of initialization block?")
+            .push(reference_counted);
+
+        self
+    }
+
     pub fn update(&mut self, system_type: SystemType, data: &F) {
         let systems = match system_type {
             SystemType::Init => &mut self.system_container.loop_systems,
@@ -94,11 +124,44 @@ impl<F> World<F> {
         };
 
         for system in systems.iter_mut() {
-            let mut system = system.lock().unwrap();
-
-            system.update(&mut self.entity_manager, &mut self.entity_query_table, data);
+            system.lock().unwrap().update(
+                &mut self.entity_manager,
+                &mut self.entity_query_table,
+                data,
+            );
 
             self.entity_manager.tick_frame();
         }
+
+        let systems = match system_type {
+            SystemType::Init => &self.system_container.threaded_loop_systems,
+            SystemType::Loop => &self.system_container.threaded_init_systems,
+        };
+
+        // todo: figure this out
+        thread::spawn(move || {
+            for system in systems
+                .lock()
+                .expect("Unable to lock systems! Did you push outside of initialization block?")
+                .iter_mut()
+            {
+                system
+                    .lock()
+                    .expect("Unable to lock system! Is the thread busy?")
+                    .update(&mut self.entity_manager, &mut self.entity_query_table);
+
+                self.entity_manager.tick_frame();
+            }
+        });
+    }
+}
+
+pub trait Leak<T> {
+    fn leaked(self) -> &'static mut T;
+}
+
+impl<T> Leak<World<T>> for Box<World<T>> {
+    fn leaked(self) -> &'static mut World<T> {
+        Box::leak(self)
     }
 }

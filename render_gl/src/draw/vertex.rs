@@ -15,6 +15,14 @@ pub struct Vertex {
 }
 
 impl Vertex {
+    pub fn empty() -> Self {
+        Self {
+            position: [0.0, 0.0, 0.0],
+            tex_pos: [0.0, 0.0],
+            normal: [0.0, 0.0, 0.0],
+        }
+    }
+
     pub fn from_vertices(
         display: &Display,
         vertices: &[(f32, f32, f32)],

@@ -1,9 +1,15 @@
-use ecs::system::System;
-use glium::{uniforms::EmptyUniforms, Display, Surface};
+use std::collections::HashMap;
 
-use crate::{camera::Camera, mesh::Mesh, uniform::MeshUniform};
+use ecs::{entity::EntityManager, system::System};
+use glium::{Display, Surface, VertexBuffer};
 
-use super::transform::{DrawParametersComponent, Transform};
+use crate::{camera::Camera, container::Matrix4, mesh::Mesh, uniform::MeshUniform};
+
+use super::{
+    instanced::Instanced,
+    transform::{DrawParametersComponent, Transform},
+    vertex::Vertex,
+};
 
 pub struct GlRenderSystem;
 pub struct InternalTransformSystem;
@@ -43,52 +49,93 @@ impl System<Display> for GlRenderSystem {
             view.view_matrix()
         };
 
-        for entity in table.query_single::<Mesh>(manager)? {
-            let mut target = display.draw();
+        let mut vertices = HashMap::<usize, Vec<Instanced>>::new();
 
-            let entries =
-                manager.query_entity_three::<Mesh, MeshUniform, DrawParametersComponent>(*entity);
-            let (mesh, uniform, draw_parameters) = (entries.0?, entries.1, entries.2);
+        for entity in table.query_single::<Instanced>(manager)? {
+            let instanced = manager.query_entity::<Instanced>(*entity).0?;
+            let mesh_id = instanced.mesh_entity as usize;
 
-            let draw_parameters = match draw_parameters {
-                Some(value) => value.0.clone(),
-                None => Default::default(),
-            };
-
-            target.clear_color_and_depth((0.0, 0.0, 1.0, 1.0), 1.0);
-
-            match uniform {
-                Some(uniform) => {
-                    let uniform = uniform.view_matrix(view);
-
-                    target
-                        .draw(
-                            &mesh.vertex_buffer,
-                            mesh.index_buffer.clone(),
-                            &mesh.program,
-                            uniform,
-                            &draw_parameters,
-                        )
-                        .unwrap();
-                }
-                None => {
-                    target
-                        .draw(
-                            &mesh.vertex_buffer,
-                            mesh.index_buffer.clone(),
-                            &mesh.program,
-                            &EmptyUniforms,
-                            &draw_parameters,
-                        )
-                        .unwrap();
-                }
+            if !vertices.contains_key(&mesh_id) {
+                vertices.insert(mesh_id, vec![]);
             }
 
-            target.finish().unwrap();
+            let vec = vertices.get_mut(&mesh_id)?;
+
+            vec.push(*instanced);
+        }
+
+        for (mesh_parent, instances) in vertices.iter() {
+            let vertex_buffer = VertexBuffer::dynamic(display, &instances).ok()?;
+            draw_entity::<Instanced>(*mesh_parent, &view, display, manager, Some(vertex_buffer));
+        }
+
+        for entity in table.query_single::<Mesh>(manager)? {
+            if vertices.contains_key(entity) {
+                continue;
+            }
+
+            draw_entity::<Vertex>(*entity, &view, display, manager, None);
         }
 
         None
     }
+}
+
+fn draw_entity<T>(
+    entity: usize,
+    view: &Matrix4,
+    display: &Display,
+    manager: &mut EntityManager,
+    extra_buffer: Option<VertexBuffer<T>>,
+) where
+    T: Copy,
+{
+    let mut target = display.draw();
+    let mut empty_mesh = MeshUniform::empty();
+
+    let entries = manager.query_entity_three::<Mesh, MeshUniform, DrawParametersComponent>(entity);
+
+    let (mesh, uniform, draw_parameters) = (
+        entries.0.unwrap(),
+        entries.1.unwrap_or_else(|| &mut empty_mesh),
+        entries.2,
+    );
+
+    let uniform = uniform.view_matrix(*view);
+    let draw_parameters = match draw_parameters {
+        Some(value) => value.0.clone(),
+        None => Default::default(),
+    };
+
+    target.clear_color_and_depth((0.0, 0.0, 0.0, 0.0), 1.0);
+
+    if let Some(extra_buffer) = extra_buffer {
+        let vertex_buffer = (&mesh.vertex_buffer, extra_buffer.per_instance().unwrap());
+
+        target
+            .draw(
+                vertex_buffer,
+                mesh.index_buffer.clone(),
+                &mesh.program,
+                uniform,
+                &draw_parameters,
+            )
+            .unwrap();
+    } else {
+        let vertex_buffer = &mesh.vertex_buffer;
+
+        target
+            .draw(
+                vertex_buffer,
+                mesh.index_buffer.clone(),
+                &mesh.program,
+                uniform,
+                &draw_parameters,
+            )
+            .unwrap();
+    }
+
+    target.finish().unwrap();
 }
 
 impl System<Display> for InternalTransformSystem {
