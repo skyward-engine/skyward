@@ -9,11 +9,12 @@ mod test {
         component::Component,
         entity::{EntityManager, EntityQueryTable},
         system::System,
-        world::World,
+        world::{SystemType, World},
     };
 
     #[test]
     fn simple_test() {
+        #[derive(Debug)]
         struct NameSystem;
 
         impl System<()> for NameSystem {
@@ -61,7 +62,7 @@ mod test {
         world
             .register::<Named>()
             .register::<Position>()
-            .with_system(NameSystem);
+            .with_system(SystemType::Loop, NameSystem);
 
         let entity = world.entity();
 
@@ -70,7 +71,7 @@ mod test {
             .with::<Position>(entity, Position { x: 37.3, y: 37.1 });
 
         for _ in 0..3 {
-            world.update(&());
+            world.update(SystemType::Loop, &());
         }
     }
 }

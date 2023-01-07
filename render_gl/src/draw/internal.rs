@@ -5,10 +5,10 @@ use crate::{camera::Camera, mesh::Mesh, uniform::MeshUniform};
 
 use super::transform::{DrawParametersComponent, Transform};
 
-pub struct InternalSystem;
+pub struct GlRenderSystem;
 pub struct InternalTransformSystem;
 
-impl System<Display> for InternalSystem {
+impl System<Display> for GlRenderSystem {
     /// Renders the mesh components of all entities that have both a `Mesh` and a `Transform` component.
     /// If an entity has a `Mesh` component but no `Transform` component, the default identity matrix is used.
     ///
